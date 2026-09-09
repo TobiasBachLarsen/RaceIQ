@@ -1,0 +1,8 @@
+bin/
+obj/
+*.user
+.vs/
+appsettings.Development.json
+
+# Design/planning docs stay local — not part of the public portfolio repo
+docs/
