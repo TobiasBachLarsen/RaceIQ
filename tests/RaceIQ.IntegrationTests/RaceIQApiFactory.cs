@@ -4,15 +4,27 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
+using RaceIQ.Application;
 using RaceIQ.Infrastructure;
 using RaceIQ.Infrastructure.Strava;
 using Xunit;
+
+// Both StravaCallbackTests and SyncAndAnalyzeFlowTests use IClassFixture<RaceIQApiFactory>,
+// so xunit creates one RaceIQApiFactory instance per test class. Each instance's
+// InitializeAsync drops and recreates the SAME physical "raceiq_test" Postgres database.
+// xunit runs different test classes' fixtures concurrently by default, which raced the two
+// EnsureDeletedAsync/EnsureCreatedAsync calls against each other and intermittently failed
+// with "database raceiq_test does not exist". Disabling collection parallelization serializes
+// fixture setup across classes so this doesn't race.
+[assembly: CollectionBehavior(DisableTestParallelization = true)]
 
 namespace RaceIQ.IntegrationTests;
 
 public class RaceIQApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     public Func<HttpRequestMessage, HttpResponseMessage>? StravaOAuthResponder { get; set; }
+    public Func<HttpRequestMessage, HttpResponseMessage>? StravaApiResponder { get; set; }
+    public string ClaudeAnalysisText { get; set; } = "Fake analysis: pacing was even throughout.";
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -30,6 +42,16 @@ public class RaceIQApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                 .ConfigurePrimaryHttpMessageHandler(() =>
                     new FakeHttpMessageHandler(req => StravaOAuthResponder?.Invoke(req)
                         ?? throw new InvalidOperationException("No StravaOAuthResponder configured for this test.")));
+
+            services.AddHttpClient<IStravaApiClient, StravaApiClient>()
+                .ConfigurePrimaryHttpMessageHandler(() =>
+                    new FakeHttpMessageHandler(req => StravaApiResponder?.Invoke(req)
+                        ?? throw new InvalidOperationException("No StravaApiResponder configured for this test.")));
+
+            var claudeDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(IClaudeClient));
+            if (claudeDescriptor is not null)
+                services.Remove(claudeDescriptor);
+            services.AddScoped<IClaudeClient>(_ => new TestClaudeClient(() => ClaudeAnalysisText));
         });
     }
 
@@ -42,4 +64,17 @@ public class RaceIQApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     }
 
     public new Task DisposeAsync() => Task.CompletedTask;
+}
+
+public class TestClaudeClient : IClaudeClient
+{
+    private readonly Func<string> _responseAccessor;
+
+    public TestClaudeClient(Func<string> responseAccessor)
+    {
+        _responseAccessor = responseAccessor;
+    }
+
+    public Task<string> GenerateAnalysisAsync(string prompt) =>
+        Task.FromResult(_responseAccessor());
 }
