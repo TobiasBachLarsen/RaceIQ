@@ -1,0 +1,84 @@
+@page "/activities/{ActivityId:int}"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
+@using RaceIQ.Application
+@using RaceIQ.Domain
+@inject IActivityRepository ActivityRepository
+@inject IAnalysisReportRepository AnalysisReportRepository
+@inject IActivityAnalysisService ActivityAnalysisService
+
+@if (_activity is null)
+{
+    <p>Ride not found.</p>
+}
+else
+{
+    <h1>@_activity.Name</h1>
+    <p>
+        @_activity.StartedAt.ToShortDateString() —
+        @((_activity.DistanceMeters / 1000).ToString("F1")) km,
+        @_activity.Duration.TotalMinutes.ToString("F0") min,
+        avg @(_activity.AveragePowerWatts?.ToString("F0") ?? "-") W
+    </p>
+
+    @if (_report is null)
+    {
+        <button @onclick="AnalyzeAsync" disabled="@_analyzing">
+            @(_analyzing ? "Analyserer..." : "Analysér")
+        </button>
+    }
+    else
+    {
+        <h2>AI-pacinganalyse</h2>
+        <p style="white-space: pre-wrap">@_report.ReportText</p>
+    }
+
+    @if (_analysisError is not null)
+    {
+        <p style="color:red">@_analysisError</p>
+    }
+}
+
+@code {
+    [Parameter]
+    public int ActivityId { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
+
+    private Activity? _activity;
+    private AnalysisReport? _report;
+    private bool _analyzing;
+    private string? _analysisError;
+    private string _userId = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState!;
+        _userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+
+        _activity = await ActivityRepository.GetByIdAsync(ActivityId, _userId);
+        if (_activity is not null)
+            _report = await AnalysisReportRepository.GetForActivityAsync(_activity.Id);
+    }
+
+    private async Task AnalyzeAsync()
+    {
+        _analyzing = true;
+        _analysisError = null;
+
+        try
+        {
+            _report = await ActivityAnalysisService.AnalyzeAsync(ActivityId, _userId);
+        }
+        catch (Exception ex)
+        {
+            _analysisError = $"Analysen fejlede: {ex.Message}";
+        }
+        finally
+        {
+            _analyzing = false;
+        }
+    }
+}
