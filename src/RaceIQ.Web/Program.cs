@@ -4,7 +4,9 @@ using Microsoft.EntityFrameworkCore;
 using RaceIQ.Web;
 using RaceIQ.Web.Components;
 using RaceIQ.Web.Components.Account;
+using Anthropic;
 using RaceIQ.Infrastructure;
+using RaceIQ.Infrastructure.Claude;
 using RaceIQ.Infrastructure.Strava;
 using RaceIQ.Application;
 
@@ -39,6 +41,15 @@ builder.Services.AddSingleton<StravaRequestThrottle>();
 builder.Services.AddHttpClient<IStravaApiClient, StravaApiClient>();
 builder.Services.AddScoped<IStravaSyncService, StravaSyncService>();
 builder.Services.AddScoped<IActivityRepository, EfActivityRepository>();
+
+builder.Services.AddSingleton(new AnthropicClient
+{
+    ApiKey = builder.Configuration["Anthropic:ApiKey"]
+        ?? Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY")
+});
+builder.Services.AddScoped<IClaudeClient, ClaudeClient>();
+builder.Services.AddScoped<IActivityAnalysisService, ActivityAnalysisService>();
+builder.Services.AddScoped<IAnalysisReportRepository, EfAnalysisReportRepository>();
 
 builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = false)
     .AddEntityFrameworkStores<RaceIQDbContext>()
