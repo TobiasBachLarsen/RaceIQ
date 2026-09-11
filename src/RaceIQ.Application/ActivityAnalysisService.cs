@@ -1,11 +1,26 @@
 using System.Text;
 using System.Text.Json;
+using RaceIQ.Application.Exceptions;
 using RaceIQ.Domain;
 
 namespace RaceIQ.Application;
 
 public class ActivityAnalysisService : IActivityAnalysisService
 {
+    private readonly IActivityRepository _activityRepository;
+    private readonly IAnalysisReportRepository _reportRepository;
+    private readonly IClaudeClient _claudeClient;
+
+    public ActivityAnalysisService(
+        IActivityRepository activityRepository,
+        IAnalysisReportRepository reportRepository,
+        IClaudeClient claudeClient)
+    {
+        _activityRepository = activityRepository;
+        _reportRepository = reportRepository;
+        _claudeClient = claudeClient;
+    }
+
     public static string BuildPrompt(Activity activity)
     {
         var stream = JsonSerializer.Deserialize<List<StreamPoint>>(activity.StreamDataJson)
@@ -39,8 +54,21 @@ public class ActivityAnalysisService : IActivityAnalysisService
         return sb.ToString();
     }
 
-    public Task<AnalysisReport> AnalyzeAsync(int activityId, string userId)
+    public async Task<AnalysisReport> AnalyzeAsync(int activityId, string userId)
     {
-        throw new NotImplementedException("Implemented in Task 7.");
+        var activity = await _activityRepository.GetByIdAsync(activityId, userId)
+            ?? throw new ActivityNotFoundException(activityId);
+
+        var prompt = BuildPrompt(activity);
+        var reportText = await _claudeClient.GenerateAnalysisAsync(prompt);
+
+        var report = new AnalysisReport
+        {
+            ActivityId = activity.Id,
+            ReportText = reportText,
+            GeneratedAt = DateTime.UtcNow
+        };
+
+        return await _reportRepository.AddAsync(report);
     }
 }
