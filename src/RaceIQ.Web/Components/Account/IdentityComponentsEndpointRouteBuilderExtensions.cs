@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
 using RaceIQ.Web.Components.Account.Pages;
 using RaceIQ.Web.Components.Account.Pages.Manage;
-using RaceIQ.Web.Data;
+using RaceIQ.Infrastructure;
 
 namespace Microsoft.AspNetCore.Routing;
 

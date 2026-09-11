@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Identity;
-using RaceIQ.Web.Data;
+using RaceIQ.Infrastructure;
 
 namespace RaceIQ.Web.Components.Account;
 

@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
-using RaceIQ.Web.Data;
+using RaceIQ.Infrastructure;
 
 namespace RaceIQ.Web.Components.Account;
 
