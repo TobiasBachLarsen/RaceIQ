@@ -35,6 +35,11 @@ builder.Services.Configure<StravaOAuthOptions>(builder.Configuration.GetSection(
 builder.Services.AddHttpClient<IStravaOAuthService, StravaOAuthService>();
 builder.Services.AddScoped<IConnectedAccountRepository, EfConnectedAccountRepository>();
 
+builder.Services.AddSingleton<StravaRequestThrottle>();
+builder.Services.AddHttpClient<IStravaApiClient, StravaApiClient>();
+builder.Services.AddScoped<IStravaSyncService, StravaSyncService>();
+builder.Services.AddScoped<IActivityRepository, EfActivityRepository>();
+
 builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = false)
     .AddEntityFrameworkStores<RaceIQDbContext>()
     .AddSignInManager()
