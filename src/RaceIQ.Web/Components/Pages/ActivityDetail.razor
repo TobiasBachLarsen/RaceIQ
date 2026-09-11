@@ -1,4 +1,5 @@
 @page "/activities/{ActivityId:int}"
+@rendermode InteractiveServer
 @attribute [Authorize]
 @using Microsoft.AspNetCore.Authorization
 @using System.Security.Claims
@@ -7,6 +8,7 @@
 @inject IActivityRepository ActivityRepository
 @inject IAnalysisReportRepository AnalysisReportRepository
 @inject IActivityAnalysisService ActivityAnalysisService
+@inject ILogger<ActivityDetail> Logger
 
 @if (_activity is null)
 {
@@ -74,7 +76,8 @@ else
         }
         catch (Exception ex)
         {
-            _analysisError = $"Analysen fejlede: {ex.Message}";
+            Logger.LogError(ex, "Activity analysis failed for activity {ActivityId} and user {UserId}", ActivityId, _userId);
+            _analysisError = "Analysen fejlede. Prøv igen om lidt.";
         }
         finally
         {

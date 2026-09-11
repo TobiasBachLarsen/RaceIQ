@@ -1,5 +1,6 @@
 @page "/"
 @page "/dashboard"
+@rendermode InteractiveServer
 @attribute [Authorize]
 @using Microsoft.AspNetCore.Authorization
 @using System.Security.Claims
@@ -9,6 +10,7 @@
 @inject IConnectedAccountRepository ConnectedAccountRepository
 @inject IActivityRepository ActivityRepository
 @inject IStravaSyncService StravaSyncService
+@inject ILogger<Dashboard> Logger
 
 <h1>Your rides</h1>
 
@@ -87,7 +89,8 @@ else
         }
         catch (Exception ex)
         {
-            _syncError = $"Synkronisering fejlede: {ex.Message}";
+            Logger.LogError(ex, "Strava sync failed for user {UserId}", _userId);
+            _syncError = "Synkronisering fejlede. Prøv igen om lidt.";
         }
         finally
         {

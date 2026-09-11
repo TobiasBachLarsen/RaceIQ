@@ -8,11 +8,13 @@ public class StravaOAuthService : IStravaOAuthService
 {
     private readonly HttpClient _httpClient;
     private readonly StravaOAuthOptions _options;
+    private readonly StravaRequestThrottle _throttle;
 
-    public StravaOAuthService(HttpClient httpClient, IOptions<StravaOAuthOptions> options)
+    public StravaOAuthService(HttpClient httpClient, IOptions<StravaOAuthOptions> options, StravaRequestThrottle throttle)
     {
         _httpClient = httpClient;
         _options = options.Value;
+        _throttle = throttle;
     }
 
     public string BuildAuthorizeUrl(string state)
@@ -45,6 +47,8 @@ public class StravaOAuthService : IStravaOAuthService
 
     private async Task<StravaTokenResponse> RequestTokenAsync(Dictionary<string, string> form)
     {
+        await _throttle.WaitForSlotAsync();
+
         var response = await _httpClient.PostAsync(
             "https://www.strava.com/oauth/token",
             new FormUrlEncodedContent(form));
