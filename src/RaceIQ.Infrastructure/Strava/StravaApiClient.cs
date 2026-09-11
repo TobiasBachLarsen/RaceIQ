@@ -47,7 +47,7 @@ public class StravaApiClient : IStravaApiClient
         await _throttle.WaitForSlotAsync();
 
         using var request = new HttpRequestMessage(HttpMethod.Get,
-            $"https://www.strava.com/api/v3/activities/{stravaActivityId}/streams" +
+            $"https://www.strava.com/api/v3/activities/{Uri.EscapeDataString(stravaActivityId)}/streams" +
             "?keys=time,watts,heartrate,cadence,altitude,distance&key_by_type=true");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
@@ -76,10 +76,10 @@ public class StravaApiClient : IStravaApiClient
         data is not null && index < data.Count ? data[index] : null;
 
     private record StravaActivityPayload(
-        long Id,
-        string Name,
+        [property: JsonPropertyName("id")] long Id,
+        [property: JsonPropertyName("name")] string Name,
         [property: JsonPropertyName("start_date")] DateTime StartDate,
-        double Distance,
+        [property: JsonPropertyName("distance")] double Distance,
         [property: JsonPropertyName("moving_time")] int MovingTime,
         [property: JsonPropertyName("total_elevation_gain")] double TotalElevationGain,
         [property: JsonPropertyName("average_watts")] double? AverageWatts,
