@@ -91,6 +91,7 @@ else
         }
         finally
         {
+            _connectedAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.Strava);
             _syncing = false;
         }
     }
