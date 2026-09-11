@@ -42,10 +42,15 @@ builder.Services.AddHttpClient<IStravaApiClient, StravaApiClient>();
 builder.Services.AddScoped<IStravaSyncService, StravaSyncService>();
 builder.Services.AddScoped<IActivityRepository, EfActivityRepository>();
 
+var anthropicApiKey = builder.Configuration["Anthropic:ApiKey"];
+if (string.IsNullOrWhiteSpace(anthropicApiKey))
+{
+    anthropicApiKey = Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY");
+}
+
 builder.Services.AddSingleton(new AnthropicClient
 {
-    ApiKey = builder.Configuration["Anthropic:ApiKey"]
-        ?? Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY")
+    ApiKey = anthropicApiKey
 });
 builder.Services.AddScoped<IClaudeClient, ClaudeClient>();
 builder.Services.AddScoped<IActivityAnalysisService, ActivityAnalysisService>();
@@ -59,6 +64,12 @@ builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.Requ
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<RaceIQDbContext>();
+    db.Database.Migrate();
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

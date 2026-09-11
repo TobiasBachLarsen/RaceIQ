@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using RaceIQ.Application.Exceptions;
@@ -38,12 +39,15 @@ public class ActivityAnalysisService : IActivityAnalysisService
         if (activity.AverageHeartRateBpm is { } avgHr)
             sb.AppendLine($"Average heart rate: {avgHr:F0} bpm.");
 
-        sb.AppendLine();
-        sb.AppendLine("Power sampled every 30 seconds through the ride (seconds, watts):");
-        for (var i = 0; i < stream.Count; i += 30)
+        if (stream.Any(p => p.Watts is not null))
         {
-            var point = stream[i];
-            sb.AppendLine($"{point.TimeSeconds}s: {point.Watts:F0}W");
+            sb.AppendLine();
+            sb.AppendLine("Power sampled every 30 seconds through the ride (seconds, watts):");
+            for (var i = 0; i < stream.Count; i += 30)
+            {
+                var point = stream[i];
+                sb.AppendLine($"{point.TimeSeconds}s: {point.Watts:F0}W");
+            }
         }
 
         sb.AppendLine();

@@ -29,6 +29,9 @@ public class StravaSyncService : IStravaSyncService
         var account = await _accountRepository.GetAsync(userId, ConnectedAccountProvider.Strava)
             ?? throw new ConnectedAccountNotFoundException(userId);
 
+        if (account.Status == ConnectedAccountStatus.NeedsReconnect)
+            throw new StravaReconnectRequiredException(userId);
+
         var accessToken = await EnsureFreshTokenAsync(account);
 
         var summaries = await _apiClient.ListRecentActivitiesAsync(accessToken);

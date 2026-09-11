@@ -1,5 +1,24 @@
 ﻿@inherits LayoutComponentBase
 
+<AuthorizeView>
+    <Authorized>
+        <div>
+            <a href="/dashboard">Dashboard</a>
+            <form action="Account/Logout" method="post">
+                <AntiforgeryToken />
+                <input type="hidden" name="returnUrl" value="Account/Login" />
+                <button type="submit">Log ud</button>
+            </form>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <div>
+            <a href="Account/Login">Log ind</a>
+            <a href="Account/Register">Registrer</a>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
 @Body
 
 <div id="blazor-error-ui">

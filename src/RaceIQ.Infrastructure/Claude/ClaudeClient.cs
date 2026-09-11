@@ -32,6 +32,12 @@ public class ClaudeClient : IClaudeClient
             throw new ClaudeAnalysisRefusedException(response.StopDetails?.Explanation);
         }
 
+        if (response.StopReason == "max_tokens")
+        {
+            throw new InvalidOperationException(
+                "Claude's response was truncated before completing the analysis (hit the max_tokens limit).");
+        }
+
         var textBlocks = response.Content
             .Select(b => b.Value)
             .OfType<BetaTextBlock>()
