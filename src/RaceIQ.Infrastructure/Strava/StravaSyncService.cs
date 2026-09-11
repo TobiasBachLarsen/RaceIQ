@@ -64,16 +64,10 @@ public class StravaSyncService : IStravaSyncService
         if (account.TokenExpiresAt is { } expiresAt && expiresAt > DateTime.UtcNow.AddMinutes(5))
             return account.AccessToken;
 
+        StravaTokenResponse refreshed;
         try
         {
-            var refreshed = await _oauthService.RefreshTokenAsync(account.RefreshToken!);
-
-            account.AccessToken = refreshed.AccessToken;
-            account.RefreshToken = refreshed.RefreshToken;
-            account.TokenExpiresAt = DateTimeOffset.FromUnixTimeSeconds(refreshed.ExpiresAtUnix).UtcDateTime;
-            await _accountRepository.UpsertAsync(account);
-
-            return account.AccessToken;
+            refreshed = await _oauthService.RefreshTokenAsync(account.RefreshToken!);
         }
         catch (Exception)
         {
@@ -81,5 +75,12 @@ public class StravaSyncService : IStravaSyncService
             await _accountRepository.UpsertAsync(account);
             throw;
         }
+
+        account.AccessToken = refreshed.AccessToken;
+        account.RefreshToken = refreshed.RefreshToken;
+        account.TokenExpiresAt = DateTimeOffset.FromUnixTimeSeconds(refreshed.ExpiresAtUnix).UtcDateTime;
+        await _accountRepository.UpsertAsync(account);
+
+        return account.AccessToken;
     }
 }
