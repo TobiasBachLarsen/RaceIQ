@@ -51,9 +51,20 @@ public class ActivityAnalysisService : IActivityAnalysisService
         }
 
         sb.AppendLine();
-        sb.AppendLine("Explain in plain language where the rider's pacing was uneven, where " +
-            "they went out too hard or faded, and what they should do differently next time on " +
-            "a similar ride. Be specific and reference the numbers above. Keep it under 300 words.");
+        sb.AppendLine("This ride may have been done alone, in a group, or in a pack/peloton race. " +
+            "You only have power/heart rate numbers, not positional data, so you cannot tell which " +
+            "it was. Keep this in mind: in a group or race, drafting behind other riders lets a " +
+            "rider vary their power a lot on purpose (surging to close a gap or follow an attack, " +
+            "then recovering while sheltered in the group), so bursty, uneven power is often normal " +
+            "and correct there, not a mistake. Do not default to recommending steady, even power as " +
+            "the goal. Only call out pacing as a real problem if the pattern looks like it cost the " +
+            "rider dearly regardless of context, such as a hard effort early that is never " +
+            "recovered from, a big fade in the final part of the ride, or power dropping toward zero " +
+            "well before the ride ends. If you are not confident the pattern is a genuine problem, " +
+            "say so plainly instead of inventing pacing advice.");
+        sb.AppendLine();
+        sb.AppendLine("Explain in plain language what you found. Be specific and reference the " +
+            "numbers above. Keep it under 300 words. Write your entire response in Danish.");
 
         return sb.ToString();
     }
