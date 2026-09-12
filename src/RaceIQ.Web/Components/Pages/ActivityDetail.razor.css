@@ -1,0 +1,56 @@
+.back-link {
+    display: inline-block;
+    font-size: .875rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+}
+
+.back-link:hover {
+    color: var(--text);
+    text-decoration: none;
+}
+
+.stat-strip {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin: 0 0 1.75rem;
+}
+
+@media (min-width: 640px) {
+    .stat-strip {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+.stat-strip > div {
+    background: var(--surface);
+    padding: 1rem 1.1rem;
+}
+
+.stat-strip dt {
+    font-size: .75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--text-muted);
+    margin: 0 0 .3rem;
+}
+
+.stat-strip dd {
+    font-size: 1.125rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    margin: 0;
+}
+
+.analysis-card {
+    white-space: pre-wrap;
+    line-height: 1.65;
+    max-width: 65ch;
+}

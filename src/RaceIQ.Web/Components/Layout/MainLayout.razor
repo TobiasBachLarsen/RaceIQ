@@ -1,25 +1,32 @@
 ﻿@inherits LayoutComponentBase
 
-<AuthorizeView>
-    <Authorized>
-        <div>
-            <a href="/dashboard">Dashboard</a>
-            <form action="Account/Logout" method="post">
-                <AntiforgeryToken />
-                <input type="hidden" name="returnUrl" value="Account/Login" />
-                <button type="submit">Log ud</button>
-            </form>
-        </div>
-    </Authorized>
-    <NotAuthorized>
-        <div>
-            <a href="Account/Login">Log ind</a>
-            <a href="Account/Register">Registrer</a>
-        </div>
-    </NotAuthorized>
-</AuthorizeView>
+<header class="topbar">
+    <div class="topbar-inner">
+        <a href="/dashboard" class="brand">RaceIQ</a>
+        <AuthorizeView>
+            <Authorized>
+                <nav class="topbar-nav">
+                    <a href="/dashboard">Dashboard</a>
+                    <form action="Account/Logout" method="post">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="returnUrl" value="Account/Login" />
+                        <button type="submit" class="link-button">Log ud</button>
+                    </form>
+                </nav>
+            </Authorized>
+            <NotAuthorized>
+                <nav class="topbar-nav">
+                    <a href="Account/Login">Log ind</a>
+                    <a href="Account/Register" class="btn btn-primary">Registrer</a>
+                </nav>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+</header>
 
-@Body
+<main class="page-container">
+    @Body
+</main>
 
 <div id="blazor-error-ui">
     An unhandled error has occurred.
