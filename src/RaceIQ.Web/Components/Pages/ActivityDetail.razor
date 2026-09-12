@@ -10,35 +10,52 @@
 @inject IActivityAnalysisService ActivityAnalysisService
 @inject ILogger<ActivityDetail> Logger
 
+<a href="/dashboard" class="back-link">&larr; Dine ture</a>
+
 @if (_activity is null)
 {
-    <p>Ride not found.</p>
+    <div class="card empty-state">
+        <p>Turen blev ikke fundet.</p>
+    </div>
 }
 else
 {
     <h1>@_activity.Name</h1>
-    <p>
-        @_activity.StartedAt.ToShortDateString() —
-        @((_activity.DistanceMeters / 1000).ToString("F1")) km,
-        @_activity.Duration.TotalMinutes.ToString("F0") min,
-        avg @(_activity.AveragePowerWatts?.ToString("F0") ?? "-") W
-    </p>
+
+    <dl class="stat-strip">
+        <div>
+            <dt>Dato</dt>
+            <dd>@_activity.StartedAt.ToShortDateString()</dd>
+        </div>
+        <div>
+            <dt>Distance</dt>
+            <dd>@((_activity.DistanceMeters / 1000).ToString("F1")) km</dd>
+        </div>
+        <div>
+            <dt>Varighed</dt>
+            <dd>@_activity.Duration.TotalMinutes.ToString("F0") min</dd>
+        </div>
+        <div>
+            <dt>Snit effekt</dt>
+            <dd>@(_activity.AveragePowerWatts?.ToString("F0") ?? "-") W</dd>
+        </div>
+    </dl>
 
     @if (_report is null)
     {
-        <button @onclick="AnalyzeAsync" disabled="@_analyzing">
+        <button class="btn btn-primary" @onclick="AnalyzeAsync" disabled="@_analyzing">
             @(_analyzing ? "Analyserer..." : "Analysér")
         </button>
     }
     else
     {
         <h2>AI-pacinganalyse</h2>
-        <p style="white-space: pre-wrap">@_report.ReportText</p>
+        <div class="card analysis-card">@_report.ReportText</div>
     }
 
     @if (_analysisError is not null)
     {
-        <p style="color:red">@_analysisError</p>
+        <div class="alert alert-danger">@_analysisError</div>
     }
 }
 

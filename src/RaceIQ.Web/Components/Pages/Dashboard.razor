@@ -12,46 +12,64 @@
 @inject IStravaSyncService StravaSyncService
 @inject ILogger<Dashboard> Logger
 
-<h1>Your rides</h1>
+<div class="dashboard-header">
+    <h1>Dine ture</h1>
+
+    @if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
+    {
+        <button class="btn btn-primary" @onclick="SyncAsync" disabled="@_syncing">
+            @(_syncing ? "Synkroniserer..." : "Synkronisér")
+        </button>
+    }
+</div>
 
 @if (_connectedAccount is null)
 {
-    <p><a href="/strava/connect">Connect Strava</a></p>
+    <div class="card empty-state">
+        <p>Forbind din Strava-konto for at hente dine ture.</p>
+        <a href="/strava/connect" class="btn btn-primary">Forbind Strava</a>
+    </div>
 }
 else if (_connectedAccount.Status == ConnectedAccountStatus.NeedsReconnect)
 {
-    <p>Your Strava connection needs to be refreshed. <a href="/strava/connect">Reconnect</a></p>
-}
-else
-{
-    <button @onclick="SyncAsync" disabled="@_syncing">
-        @(_syncing ? "Synkroniserer..." : "Synkronisér")
-    </button>
+    <div class="card empty-state">
+        <span class="status-badge status-badge--warning">Skal genoprettes</span>
+        <p>Din Strava-forbindelse skal opdateres, før du kan synkronisere igen.</p>
+        <a href="/strava/connect" class="btn btn-primary">Genopret forbindelse</a>
+    </div>
 }
 
 @if (_syncError is not null)
 {
-    <p style="color:red">@_syncError</p>
+    <div class="alert alert-danger">@_syncError</div>
 }
 
 @if (_activities is { Count: > 0 })
 {
-    <table>
-        <thead>
-            <tr><th>Ride</th><th>Date</th><th>Distance</th><th>Avg power</th></tr>
-        </thead>
-        <tbody>
-            @foreach (var activity in _activities)
-            {
-                <tr>
-                    <td><a href="/activities/@activity.Id">@activity.Name</a></td>
-                    <td>@activity.StartedAt.ToShortDateString()</td>
-                    <td>@((activity.DistanceMeters / 1000).ToString("F1")) km</td>
-                    <td>@(activity.AveragePowerWatts?.ToString("F0") ?? "-") W</td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <div class="table-wrap">
+        <table class="rides-table">
+            <thead>
+                <tr><th>Tur</th><th>Dato</th><th>Distance</th><th>Snit effekt</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var activity in _activities)
+                {
+                    <tr>
+                        <td><a href="/activities/@activity.Id">@activity.Name</a></td>
+                        <td>@activity.StartedAt.ToShortDateString()</td>
+                        <td class="num">@((activity.DistanceMeters / 1000).ToString("F1")) km</td>
+                        <td class="num">@(activity.AveragePowerWatts?.ToString("F0") ?? "-") W</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
+{
+    <div class="card empty-state">
+        <p>Ingen ture endnu. Synkronisér for at hente dine seneste ture fra Strava.</p>
+    </div>
 }
 
 @code {
