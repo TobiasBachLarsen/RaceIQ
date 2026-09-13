@@ -23,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\RaceIQ.Domain\RaceIQ.Domain.csproj" />
     <ProjectReference Include="..\..\src\RaceIQ.Application\RaceIQ.Application.csproj" />
+    <ProjectReference Include="..\..\src\RaceIQ.Infrastructure\RaceIQ.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
