@@ -43,4 +43,25 @@ public class ZwiftPowerApiClientTests
         Assert.Equal(TimeSpan.FromSeconds(2705.5), results[0].Duration);
         Assert.Contains("session=abc123", handler.LastRequest!.Headers.GetValues("Cookie"));
     }
+
+    [Fact]
+    public async Task GetRecentResultsAsync_FallsBackToEventDateWhenRaceIdAndEventNameAreMissing()
+    {
+        // Simulates the real disagreement over this endpoint's field names (see the
+        // doc comment on ZwiftPowerResultPayload): race_id and event_name may not
+        // exist in the live JSON at all. Two entries, both missing those keys, with
+        // different event_date values so we can assert the fallback stays distinct
+        // per race rather than collapsing every result onto the same id.
+        var handler = new FakeHandler(
+            """{"data":[{"event_date":1756742400,"time":1000},{"event_date":1756828800,"time":2000}]}""");
+        var client = new ZwiftPowerApiClient(new HttpClient(handler));
+
+        var results = await client.GetRecentResultsAsync("session=abc123", "12345");
+
+        Assert.Equal(2, results.Count);
+        Assert.All(results, r => Assert.False(string.IsNullOrEmpty(r.RaceId)));
+        Assert.All(results, r => Assert.NotEqual("0", r.RaceId));
+        Assert.NotEqual(results[0].RaceId, results[1].RaceId);
+        Assert.All(results, r => Assert.False(string.IsNullOrEmpty(r.EventName)));
+    }
 }
