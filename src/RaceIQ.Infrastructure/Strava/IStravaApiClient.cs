@@ -18,4 +18,5 @@ public record StravaActivitySummary(
     double? AveragePowerWatts,
     double? WeightedAveragePowerWatts,
     double? AverageHeartRateBpm,
-    double? AverageCadenceRpm);
+    double? AverageCadenceRpm,
+    int? WorkoutType);

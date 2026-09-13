@@ -30,7 +30,7 @@ public class SyncAndAnalyzeFlowTests : IClassFixture<RaceIQApiFactory>
             }
 
             return FakeHttpMessageHandler.JsonResponse(HttpStatusCode.OK,
-                """[{"id":555,"name":"Zwift crit race","start_date":"2026-09-01T18:00:00Z","distance":30000,"moving_time":2700,"total_elevation_gain":250,"average_watts":210,"weighted_average_watts":230,"average_heartrate":155,"average_cadence":90}]""");
+                """[{"id":555,"name":"Zwift crit race","start_date":"2026-09-01T18:00:00Z","distance":30000,"moving_time":2700,"total_elevation_gain":250,"average_watts":210,"weighted_average_watts":230,"average_heartrate":155,"average_cadence":90,"workout_type":11}]""");
         };
         _factory.ClaudeAnalysisText = "You paced the opening lap too hard and faded by lap three.";
 
@@ -56,6 +56,7 @@ public class SyncAndAnalyzeFlowTests : IClassFixture<RaceIQApiFactory>
         var activities = await activityRepository.GetAllForUserAsync(user.Id);
         Assert.Single(activities);
         Assert.Equal("Zwift crit race", activities[0].Name);
+        Assert.True(activities[0].IsRace);
 
         var analysisService = scope.ServiceProvider.GetRequiredService<IActivityAnalysisService>();
         var report = await analysisService.AnalyzeAsync(activities[0].Id, user.Id);
