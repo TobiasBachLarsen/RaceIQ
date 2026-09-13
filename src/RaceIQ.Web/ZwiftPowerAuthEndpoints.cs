@@ -27,6 +27,6 @@ public static class ZwiftPowerAuthEndpoints
             });
 
             return Results.Redirect("/dashboard");
-        }).RequireAuthorization().DisableAntiforgery();
+        }).RequireAuthorization();
     }
 }
