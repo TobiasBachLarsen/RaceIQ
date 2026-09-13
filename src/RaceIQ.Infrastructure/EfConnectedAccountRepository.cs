@@ -32,6 +32,7 @@ public class EfConnectedAccountRepository : IConnectedAccountRepository
             existing.RefreshToken = account.RefreshToken;
             existing.TokenExpiresAt = account.TokenExpiresAt;
             existing.Status = account.Status;
+            existing.ExternalAccountId = account.ExternalAccountId;
         }
 
         await _context.SaveChangesAsync();

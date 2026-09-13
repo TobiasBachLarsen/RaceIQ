@@ -2,5 +2,7 @@ namespace RaceIQ.Domain;
 
 public enum ConnectedAccountProvider
 {
-    Strava
+    Strava,
+    ZwiftPower,
+    ZwiftRacing
 }

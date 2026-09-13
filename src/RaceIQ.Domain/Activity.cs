@@ -15,4 +15,11 @@ public class Activity
     public double? AverageHeartRateBpm { get; set; }
     public double? AverageCadenceRpm { get; set; }
     public required string StreamDataJson { get; set; }
+
+    // Strava's own workout_type value (Ride: 10 = Race, 11 = Workout, per Strava's
+    // documented activity model). Null until Task 2 backfills it for newly synced
+    // activities.
+    public int? WorkoutType { get; set; }
+
+    public bool IsRace => WorkoutType == 10;
 }
