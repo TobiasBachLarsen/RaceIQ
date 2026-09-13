@@ -6,8 +6,9 @@ namespace RaceIQ.UnitTests;
 public class RaceResultTests
 {
     [Theory]
-    [InlineData(10, true)]
-    [InlineData(11, false)]
+    [InlineData(11, true)]
+    [InlineData(10, false)]
+    [InlineData(12, false)]
     [InlineData(null, false)]
     public void Activity_IsRace_ReflectsWorkoutType(int? workoutType, bool expected)
     {

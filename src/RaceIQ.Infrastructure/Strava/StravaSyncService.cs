@@ -57,6 +57,7 @@ public class StravaSyncService : IStravaSyncService
                 NormalizedPowerWatts = summary.WeightedAveragePowerWatts,
                 AverageHeartRateBpm = summary.AverageHeartRateBpm,
                 AverageCadenceRpm = summary.AverageCadenceRpm,
+                WorkoutType = summary.WorkoutType,
                 StreamDataJson = JsonSerializer.Serialize(stream)
             });
         }

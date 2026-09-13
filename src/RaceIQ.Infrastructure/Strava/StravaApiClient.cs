@@ -39,7 +39,8 @@ public class StravaApiClient : IStravaApiClient
             a.AverageWatts,
             a.WeightedAverageWatts,
             a.AverageHeartrate,
-            a.AverageCadence)).ToList();
+            a.AverageCadence,
+            a.WorkoutType)).ToList();
     }
 
     public async Task<IReadOnlyList<StreamPoint>> GetActivityStreamAsync(string accessToken, string stravaActivityId)
@@ -85,7 +86,8 @@ public class StravaApiClient : IStravaApiClient
         [property: JsonPropertyName("average_watts")] double? AverageWatts,
         [property: JsonPropertyName("weighted_average_watts")] double? WeightedAverageWatts,
         [property: JsonPropertyName("average_heartrate")] double? AverageHeartrate,
-        [property: JsonPropertyName("average_cadence")] double? AverageCadence);
+        [property: JsonPropertyName("average_cadence")] double? AverageCadence,
+        [property: JsonPropertyName("workout_type")] int? WorkoutType);
 
     private record StravaStreamsPayload(
         [property: JsonPropertyName("time")] StravaStream<int>? Time = null,
