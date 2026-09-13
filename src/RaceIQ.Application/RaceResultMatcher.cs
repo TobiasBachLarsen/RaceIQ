@@ -16,6 +16,12 @@ public class RaceResultMatcher : IRaceResultMatcher
         if (withinDate.Count == 0)
             return null;
 
+        // If only one candidate within date window, match it regardless of duration.
+        // A single candidate in such a narrow window is already a strong signal.
+        if (withinDate.Count == 1)
+            return withinDate[0];
+
+        // Multiple candidates: apply duration narrowing if available
         if (result.Duration is { } duration && duration > TimeSpan.Zero)
         {
             var tolerance = duration.TotalSeconds * DurationToleranceFraction;
@@ -23,8 +29,12 @@ public class RaceResultMatcher : IRaceResultMatcher
                 .Where(a => Math.Abs((a.Duration - duration).TotalSeconds) <= tolerance)
                 .ToList();
 
-            if (withinDuration.Count > 0)
-                withinDate = withinDuration;
+            // If no candidates satisfy the duration tolerance when we have multiple options
+            // and a duration was specified, return null rather than guessing by proximity.
+            if (withinDuration.Count == 0)
+                return null;
+
+            withinDate = withinDuration;
         }
 
         return withinDate
