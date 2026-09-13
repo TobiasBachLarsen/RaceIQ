@@ -62,13 +62,37 @@ public class ZwiftPowerConnectTests : IClassFixture<RaceIQApiFactory>
             }));
         Assert.Equal(HttpStatusCode.Redirect, loginResponse.StatusCode);
 
+        // The real Dashboard form (Components/Pages/Dashboard.razor) renders a genuine
+        // <AntiforgeryToken /> component alongside the ZwiftPower connect form, and
+        // Program.cs's app.UseAntiforgery() validates that token on every non-safe
+        // request, this MapPost endpoint included. To exercise the endpoint the same way
+        // a real browser submission would - and to get real evidence about whether
+        // .DisableAntiforgery() is actually necessary, rather than assuming it from a
+        // token-less POST - GET the authenticated dashboard and scrape its real token out
+        // of the rendered HTML, the same way the login token was scraped above.
+        var dashboardPage = await client.GetAsync("/dashboard");
+        var dashboardHtml = await dashboardPage.Content.ReadAsStringAsync();
+        var connectFormToken = Regex.Match(
+            dashboardHtml,
+            "action=\"/zwiftpower/connect\"[^>]*><input type=\"hidden\" name=\"__RequestVerificationToken\" value=\"([^\"]+)\"").Groups[1].Value;
+        Assert.False(string.IsNullOrEmpty(connectFormToken), "Could not find the ZwiftPower connect form's antiforgery token in the dashboard HTML.");
+
         var response = await client.PostAsync("/zwiftpower/connect",
             new FormUrlEncodedContent(new Dictionary<string, string>
             {
+                ["__RequestVerificationToken"] = connectFormToken,
                 ["sessionCookie"] = "fake-cookie",
                 ["zwiftRiderId"] = "12345"
             }));
 
+        // Confirmed empirically: a POST carrying this real, page-scraped antiforgery
+        // token succeeds against app.UseAntiforgery() with no special endpoint-level
+        // opt-out. .DisableAntiforgery() is therefore NOT needed here - Blazor's
+        // <AntiforgeryToken /> component interoperates correctly with the automatic
+        // [FromForm] antiforgery validation on this hand-written minimal API endpoint.
+        // (A separate, now-removed experiment confirmed the earlier 400 seen without a
+        // token was antiforgery validation working as designed on a token-less request,
+        // not evidence that a real form submission would fail.)
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
 
         var accountRepository = scope.ServiceProvider.GetRequiredService<IConnectedAccountRepository>();
