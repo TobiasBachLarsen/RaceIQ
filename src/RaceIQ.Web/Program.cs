@@ -95,6 +95,7 @@ app.MapRazorComponents<App>()
 app.MapAdditionalIdentityEndpoints();
 
 app.MapStravaAuthEndpoints();
+app.MapZwiftPowerAuthEndpoints();
 
 app.Run();
 

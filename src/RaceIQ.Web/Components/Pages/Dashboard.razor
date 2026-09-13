@@ -39,6 +39,31 @@ else if (_connectedAccount.Status == ConnectedAccountStatus.NeedsReconnect)
     </div>
 }
 
+@if (_zwiftPowerAccount is null)
+{
+    <div class="card empty-state">
+        <p>
+            Forbind ZwiftPower for at få dine løbsresultater vist. Log ind på
+            <a href="https://zwiftpower.com" target="_blank" rel="noopener">zwiftpower.com</a>,
+            åbn browserens udviklerværktøjer (Application/Storage → Cookies), kopiér din
+            session-cookie, og find dit Zwift-rytter-id på din profilside (tallet i URL'en).
+        </p>
+        <form method="post" action="/zwiftpower/connect">
+            <AntiforgeryToken />
+            <input class="form-control mb-3" name="sessionCookie" placeholder="Session-cookie" required />
+            <input class="form-control mb-3" name="zwiftRiderId" placeholder="Zwift-rytter-id" required />
+            <button type="submit" class="btn btn-primary">Forbind ZwiftPower</button>
+        </form>
+    </div>
+}
+else if (_zwiftPowerAccount.Status == ConnectedAccountStatus.NeedsReconnect)
+{
+    <div class="card empty-state">
+        <span class="status-badge status-badge--warning">ZwiftPower skal genoprettes</span>
+        <p>Cookien er sandsynligvis udløbet. Gentag forbindelsen ovenfor med en frisk cookie.</p>
+    </div>
+}
+
 @if (_syncError is not null)
 {
     <div class="alert alert-danger">@_syncError</div>
@@ -77,6 +102,7 @@ else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
     private Task<AuthenticationState>? AuthState { get; set; }
 
     private ConnectedAccount? _connectedAccount;
+    private ConnectedAccount? _zwiftPowerAccount;
     private IReadOnlyList<Activity>? _activities;
     private bool _syncing;
     private string? _syncError;
@@ -86,6 +112,7 @@ else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
     {
         _userId = await GetUserIdAsync();
         _connectedAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.Strava);
+        _zwiftPowerAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.ZwiftPower);
         _activities = await ActivityRepository.GetAllForUserAsync(_userId);
     }
 
