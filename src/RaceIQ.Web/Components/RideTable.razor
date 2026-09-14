@@ -1,0 +1,37 @@
+@using RaceIQ.Domain
+
+<div class="table-wrap">
+    <table class="rides-table">
+        <thead>
+            <tr><th>Tur</th><th>Dato</th><th>Distance</th><th>Snit effekt</th><th>Løb</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var activity in Activities)
+            {
+                <tr>
+                    <td><a href="/activities/@activity.Id">@activity.Name</a></td>
+                    <td>@activity.StartedAt.ToShortDateString()</td>
+                    <td class="num">@((activity.DistanceMeters / 1000).ToString("F1")) km</td>
+                    <td class="num">@(activity.AveragePowerWatts?.ToString("F0") ?? "-") W</td>
+                    <td class="num">
+                        @if (RaceResultsByActivityId.TryGetValue(activity.Id, out var raceResults))
+                        {
+                            var position = raceResults.Select(r => r.Position).FirstOrDefault(p => p is not null);
+                            var category = raceResults.Select(r => r.Category).FirstOrDefault(c => c is not null);
+                            @($"P{position?.ToString() ?? "-"}" + (category is { } cat ? $" · Cat {cat}" : ""))
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<Activity> Activities { get; set; } = Array.Empty<Activity>();
+
+    [Parameter, EditorRequired]
+    public IReadOnlyDictionary<int, IReadOnlyList<RaceResult>> RaceResultsByActivityId { get; set; } =
+        new Dictionary<int, IReadOnlyList<RaceResult>>();
+}
