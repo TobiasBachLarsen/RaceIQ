@@ -1,0 +1,52 @@
+@using RaceIQ.Domain
+
+@* A paste-form connect/reconnect card, shared by the ZwiftPower and ZwiftRacing blocks
+   on the Dashboard. Both providers use the same shape: a Zwift-rider-id field plus one
+   provider-specific credential field, posted to a provider connect endpoint. *@
+
+@if (Account is null || Account.Status == ConnectedAccountStatus.NeedsReconnect)
+{
+    <div class="card empty-state">
+        @if (Account is { Status: ConnectedAccountStatus.NeedsReconnect })
+        {
+            <span class="status-badge status-badge--warning">@ReconnectBadgeText</span>
+            <p>@ReconnectMessage</p>
+        }
+        else
+        {
+            @Instructions
+        }
+        <form method="post" action="@ActionUrl">
+            <AntiforgeryToken />
+            <input class="form-control mb-3" name="@PrimaryFieldName" placeholder="@PrimaryFieldPlaceholder" required />
+            <input class="form-control mb-3" name="zwiftRiderId" placeholder="Zwift-rytter-id" required />
+            <button type="submit" class="btn btn-primary">@ConnectButtonText</button>
+        </form>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public ConnectedAccount? Account { get; set; }
+
+    [Parameter, EditorRequired]
+    public string ActionUrl { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public string PrimaryFieldName { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public string PrimaryFieldPlaceholder { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public string ConnectButtonText { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public string ReconnectBadgeText { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public string ReconnectMessage { get; set; } = "";
+
+    [Parameter]
+    public RenderFragment? Instructions { get; set; }
+}
