@@ -60,8 +60,15 @@ public class ZwiftPowerSyncTests : IClassFixture<RaceIQApiFactory>
         Assert.Equal("B", results[0].Category);
         Assert.Equal(4, results[0].Position);
 
-        // sync again - must not create a duplicate RaceResult
+        // sync again - must not create a duplicate RaceResult. GetUnmatchedForUserAsync
+        // alone can't prove this: RaceResultMatcher matches unconditionally when there's
+        // exactly one candidate activity in the date window, so even a duplicate row from
+        // a broken de-dup key would also get matched and linked, leaving nothing
+        // unmatched. Re-check GetForActivityAsync instead - a broken de-dup key would
+        // produce 2 results here, not 1.
         await syncService.SyncAsync(user.Id);
+        var resultsAfterResync = await raceResultRepository.GetForActivityAsync(activity.Id);
+        Assert.Single(resultsAfterResync);
         var unmatched = await raceResultRepository.GetUnmatchedForUserAsync(user.Id);
         Assert.Empty(unmatched);
     }
