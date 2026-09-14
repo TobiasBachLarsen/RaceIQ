@@ -5,9 +5,14 @@ namespace RaceIQ.Application;
 
 // Orchestrates a sync across every registered provider. Each provider syncs
 // independently: a failure is caught and logged here and never blocks the
-// others. Only providers with a connected account are attempted - skipping a
-// NeedsReconnect account happens inside the individual provider service,
-// since that's provider-credential logic, not orchestration.
+// others. Only providers with a connected, usable account are attempted:
+// no account at all, or an account that already needs reconnecting, are
+// both skipped here rather than attempted and reported as a failure - a
+// NeedsReconnect account already has its own reconnect card on the
+// Dashboard explaining the real problem, and attempting it anyway would
+// otherwise surface a second, misleading "sync failed" banner alongside it.
+// The individual provider services keep their own NeedsReconnect guard too,
+// as defense in depth for any other caller.
 public class SyncCoordinator
 {
     private readonly IEnumerable<IProviderSyncService> _providerSyncServices;
@@ -31,7 +36,7 @@ public class SyncCoordinator
         foreach (var providerSyncService in _providerSyncServices)
         {
             var account = await _accountRepository.GetAsync(userId, providerSyncService.Provider);
-            if (account is null)
+            if (account is null || account.Status == ConnectedAccountStatus.NeedsReconnect)
                 continue;
 
             try

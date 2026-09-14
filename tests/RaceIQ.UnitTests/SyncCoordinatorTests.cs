@@ -88,4 +88,53 @@ public class SyncCoordinatorTests
 
         Assert.Equal(0, zwiftRacing.SyncCallCount);
     }
+
+    [Fact]
+    public async Task SyncAllAsync_ProviderNeedsReconnect_IsSkippedAndNotReportedAsFailure()
+    {
+        var accountRepository = new FakeConnectedAccountRepository();
+        await accountRepository.UpsertAsync(new ConnectedAccount
+        {
+            UserId = "user-1",
+            Provider = ConnectedAccountProvider.Strava,
+            AccessToken = "token",
+            Status = ConnectedAccountStatus.NeedsReconnect
+        });
+
+        var strava = new FakeProviderSyncService(ConnectedAccountProvider.Strava);
+
+        var coordinator = new SyncCoordinator(
+            new[] { strava }, accountRepository, NullLogger<SyncCoordinator>.Instance);
+
+        var outcome = await coordinator.SyncAllAsync("user-1");
+
+        Assert.Equal(0, strava.SyncCallCount);
+        Assert.False(outcome.StravaFailed);
+    }
+
+    [Fact]
+    public async Task SyncAllAsync_AllProvidersSucceed_OutcomeReportsNoFailures()
+    {
+        var accountRepository = new FakeConnectedAccountRepository();
+        await accountRepository.UpsertAsync(new ConnectedAccount
+        {
+            UserId = "user-1", Provider = ConnectedAccountProvider.Strava, AccessToken = "token"
+        });
+        await accountRepository.UpsertAsync(new ConnectedAccount
+        {
+            UserId = "user-1", Provider = ConnectedAccountProvider.ZwiftPower, AccessToken = "cookie"
+        });
+
+        var strava = new FakeProviderSyncService(ConnectedAccountProvider.Strava);
+        var zwiftPower = new FakeProviderSyncService(ConnectedAccountProvider.ZwiftPower);
+
+        var coordinator = new SyncCoordinator(
+            new[] { strava, zwiftPower }, accountRepository, NullLogger<SyncCoordinator>.Instance);
+
+        var outcome = await coordinator.SyncAllAsync("user-1");
+
+        Assert.False(outcome.StravaFailed);
+        Assert.Equal(1, strava.SyncCallCount);
+        Assert.Equal(1, zwiftPower.SyncCallCount);
+    }
 }
