@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using RaceIQ.Application.Exceptions;
 using RaceIQ.Domain;
 
@@ -12,17 +13,20 @@ public class ActivityAnalysisService : IActivityAnalysisService
     private readonly IAnalysisReportRepository _reportRepository;
     private readonly IClaudeClient _claudeClient;
     private readonly IRaceResultRepository _raceResultRepository;
+    private readonly ILogger<ActivityAnalysisService> _logger;
 
     public ActivityAnalysisService(
         IActivityRepository activityRepository,
         IAnalysisReportRepository reportRepository,
         IClaudeClient claudeClient,
-        IRaceResultRepository raceResultRepository)
+        IRaceResultRepository raceResultRepository,
+        ILogger<ActivityAnalysisService> logger)
     {
         _activityRepository = activityRepository;
         _reportRepository = reportRepository;
         _claudeClient = claudeClient;
         _raceResultRepository = raceResultRepository;
+        _logger = logger;
     }
 
     public static string BuildPrompt(Activity activity, IReadOnlyList<RaceResult> raceResults)
@@ -108,7 +112,18 @@ public class ActivityAnalysisService : IActivityAnalysisService
 
         var raceResults = await _raceResultRepository.GetForActivityAsync(activity.Id);
         var prompt = BuildPrompt(activity, raceResults);
-        var reportText = await _claudeClient.GenerateAnalysisAsync(prompt);
+
+        string reportText;
+        try
+        {
+            reportText = await _claudeClient.GenerateAnalysisAsync(prompt);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "Claude analysis call failed for activity {ActivityId}, user {UserId}", activityId, userId);
+            throw;
+        }
 
         var report = new AnalysisReport
         {

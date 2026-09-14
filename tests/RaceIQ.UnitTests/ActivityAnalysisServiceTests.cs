@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging.Abstractions;
 using RaceIQ.Application;
 using RaceIQ.Application.Exceptions;
 using RaceIQ.Domain;
@@ -194,7 +195,8 @@ public class ActivityAnalysisServiceTests
         var reportRepository = new FakeAnalysisReportRepository();
         var claudeClient = new FakeClaudeClient { ResponseText = "Great even pacing." };
         var service = new ActivityAnalysisService(
-            activityRepository, reportRepository, claudeClient, new FakeRaceResultRepository());
+            activityRepository, reportRepository, claudeClient, new FakeRaceResultRepository(),
+            NullLogger<ActivityAnalysisService>.Instance);
 
         var stream = new List<StreamPoint> { new(0, 200, 140, 90, 10, 0) };
         var activity = await activityRepository.AddAsync(new Activity
@@ -217,7 +219,7 @@ public class ActivityAnalysisServiceTests
     {
         var service = new ActivityAnalysisService(
             new FakeActivityRepository(), new FakeAnalysisReportRepository(), new FakeClaudeClient(),
-            new FakeRaceResultRepository());
+            new FakeRaceResultRepository(), NullLogger<ActivityAnalysisService>.Instance);
 
         await Assert.ThrowsAsync<ActivityNotFoundException>(
             () => service.AnalyzeAsync(999, "user-1"));
@@ -229,7 +231,7 @@ public class ActivityAnalysisServiceTests
         var activityRepository = new FakeActivityRepository();
         var service = new ActivityAnalysisService(
             activityRepository, new FakeAnalysisReportRepository(), new FakeClaudeClient(),
-            new FakeRaceResultRepository());
+            new FakeRaceResultRepository(), NullLogger<ActivityAnalysisService>.Instance);
 
         var activity = await activityRepository.AddAsync(new Activity
         {
