@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using RaceIQ.Application;
 using RaceIQ.Application.Exceptions;
 using RaceIQ.Domain;
@@ -9,17 +10,20 @@ public class ZwiftPowerSyncService : IProviderSyncService
     private readonly IZwiftPowerApiClient _apiClient;
     private readonly IConnectedAccountRepository _accountRepository;
     private readonly RaceResultImporter _importer;
+    private readonly ILogger<ZwiftPowerSyncService> _logger;
 
     public ConnectedAccountProvider Provider => ConnectedAccountProvider.ZwiftPower;
 
     public ZwiftPowerSyncService(
         IZwiftPowerApiClient apiClient,
         IConnectedAccountRepository accountRepository,
-        RaceResultImporter importer)
+        RaceResultImporter importer,
+        ILogger<ZwiftPowerSyncService> logger)
     {
         _apiClient = apiClient;
         _accountRepository = accountRepository;
         _importer = importer;
+        _logger = logger;
     }
 
     public async Task SyncAsync(string userId)
@@ -35,7 +39,7 @@ public class ZwiftPowerSyncService : IProviderSyncService
         {
             results = await _apiClient.GetRecentResultsAsync(account.AccessToken, account.ExternalAccountId!);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             // Covers both a real network failure (HttpRequestException) and an expired
             // session that HttpClient's default redirect-following turns into an HTTP 200
@@ -44,6 +48,8 @@ public class ZwiftPowerSyncService : IProviderSyncService
             // NotSupportedException depending on the returned content-type, or
             // TaskCanceledException on a slow/broken redirect chain). Any of these shapes
             // means the credential can no longer be used, so treat them the same way.
+            _logger.LogWarning(ex,
+                "ZwiftPower sync failed for user {UserId}; flipping account to NeedsReconnect", userId);
             account.Status = ConnectedAccountStatus.NeedsReconnect;
             await _accountRepository.UpsertAsync(account);
             return;

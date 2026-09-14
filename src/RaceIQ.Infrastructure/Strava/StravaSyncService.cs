@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using RaceIQ.Application;
 using RaceIQ.Application.Exceptions;
 using RaceIQ.Domain;
@@ -11,6 +12,7 @@ public class StravaSyncService : IProviderSyncService
     private readonly IStravaOAuthService _oauthService;
     private readonly IActivityRepository _activityRepository;
     private readonly IConnectedAccountRepository _accountRepository;
+    private readonly ILogger<StravaSyncService> _logger;
 
     public ConnectedAccountProvider Provider => ConnectedAccountProvider.Strava;
 
@@ -18,12 +20,14 @@ public class StravaSyncService : IProviderSyncService
         IStravaApiClient apiClient,
         IStravaOAuthService oauthService,
         IActivityRepository activityRepository,
-        IConnectedAccountRepository accountRepository)
+        IConnectedAccountRepository accountRepository,
+        ILogger<StravaSyncService> logger)
     {
         _apiClient = apiClient;
         _oauthService = oauthService;
         _activityRepository = activityRepository;
         _accountRepository = accountRepository;
+        _logger = logger;
     }
 
     public async Task SyncAsync(string userId)
@@ -37,6 +41,7 @@ public class StravaSyncService : IProviderSyncService
         var accessToken = await EnsureFreshTokenAsync(account);
 
         var summaries = await _apiClient.ListRecentActivitiesAsync(accessToken);
+        var importedCount = 0;
 
         foreach (var summary in summaries)
         {
@@ -62,7 +67,11 @@ public class StravaSyncService : IProviderSyncService
                 WorkoutType = summary.WorkoutType,
                 StreamDataJson = JsonSerializer.Serialize(stream)
             });
+            importedCount++;
         }
+
+        _logger.LogInformation(
+            "Strava sync imported {ImportedCount} new activities for user {UserId}", importedCount, userId);
     }
 
     private async Task<string> EnsureFreshTokenAsync(ConnectedAccount account)
@@ -75,8 +84,10 @@ public class StravaSyncService : IProviderSyncService
         {
             refreshed = await _oauthService.RefreshTokenAsync(account.RefreshToken!);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex,
+                "Strava token refresh failed for user {UserId}; flipping account to NeedsReconnect", account.UserId);
             account.Status = ConnectedAccountStatus.NeedsReconnect;
             await _accountRepository.UpsertAsync(account);
             throw;

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using RaceIQ.Domain;
 
 namespace RaceIQ.Application;
@@ -11,21 +12,25 @@ public class RaceResultImporter
     private readonly IRaceResultRepository _raceResultRepository;
     private readonly IRaceResultMatcher _matcher;
     private readonly IActivityRepository _activityRepository;
+    private readonly ILogger<RaceResultImporter> _logger;
 
     public RaceResultImporter(
         IRaceResultRepository raceResultRepository,
         IRaceResultMatcher matcher,
-        IActivityRepository activityRepository)
+        IActivityRepository activityRepository,
+        ILogger<RaceResultImporter> logger)
     {
         _raceResultRepository = raceResultRepository;
         _matcher = matcher;
         _activityRepository = activityRepository;
+        _logger = logger;
     }
 
     public async Task ImportAsync(string userId, IReadOnlyList<RaceResult> incoming)
     {
         var activities = await _activityRepository.GetAllForUserAsync(userId);
         var matchedResultIds = new HashSet<int>();
+        var matchedCount = 0;
 
         foreach (var result in incoming)
         {
@@ -36,7 +41,10 @@ public class RaceResultImporter
             {
                 var match = _matcher.FindMatch(stored, activities);
                 if (match is not null)
+                {
                     await _raceResultRepository.LinkToActivityAsync(stored.Id, match.Id);
+                    matchedCount++;
+                }
             }
         }
 
@@ -51,7 +59,14 @@ public class RaceResultImporter
 
             var match = _matcher.FindMatch(result, activities);
             if (match is not null)
+            {
                 await _raceResultRepository.LinkToActivityAsync(result.Id, match.Id);
+                matchedCount++;
+            }
         }
+
+        _logger.LogInformation(
+            "Imported {ImportedCount} race results for user {UserId}, matched {MatchedCount} to activities",
+            incoming.Count, userId, matchedCount);
     }
 }

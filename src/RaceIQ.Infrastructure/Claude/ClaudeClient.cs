@@ -1,6 +1,7 @@
 using Anthropic;
 using Anthropic.Models.Beta.Messages;
 using NonBeta = Anthropic.Models.Messages;
+using Microsoft.Extensions.Logging;
 using RaceIQ.Application;
 using RaceIQ.Application.Exceptions;
 
@@ -9,10 +10,12 @@ namespace RaceIQ.Infrastructure.Claude;
 public class ClaudeClient : IClaudeClient
 {
     private readonly AnthropicClient _client;
+    private readonly ILogger<ClaudeClient> _logger;
 
-    public ClaudeClient(AnthropicClient client)
+    public ClaudeClient(AnthropicClient client, ILogger<ClaudeClient> logger)
     {
         _client = client;
+        _logger = logger;
     }
 
     public async Task<string> GenerateAnalysisAsync(string prompt)
@@ -29,11 +32,13 @@ public class ClaudeClient : IClaudeClient
 
         if (response.StopReason == "refusal")
         {
+            _logger.LogWarning("Claude refused to generate an analysis: {Explanation}", response.StopDetails?.Explanation);
             throw new ClaudeAnalysisRefusedException(response.StopDetails?.Explanation);
         }
 
         if (response.StopReason == "max_tokens")
         {
+            _logger.LogWarning("Claude analysis response was truncated (hit the max_tokens limit)");
             throw new InvalidOperationException(
                 "Claude's response was truncated before completing the analysis (hit the max_tokens limit).");
         }
