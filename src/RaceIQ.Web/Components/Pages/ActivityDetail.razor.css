@@ -54,3 +54,16 @@
     line-height: 1.65;
     max-width: 65ch;
 }
+
+.race-result-card {
+    margin-bottom: 1.5rem;
+}
+
+.race-result-card h3 {
+    margin: 0 0 .5rem;
+}
+
+.race-result-card p {
+    margin: 0;
+    color: var(--text-muted);
+}

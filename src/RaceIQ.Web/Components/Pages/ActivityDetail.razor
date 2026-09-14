@@ -7,6 +7,7 @@
 @using RaceIQ.Domain
 @inject IActivityRepository ActivityRepository
 @inject IAnalysisReportRepository AnalysisReportRepository
+@inject IRaceResultRepository RaceResultRepository
 @inject IActivityAnalysisService ActivityAnalysisService
 @inject ILogger<ActivityDetail> Logger
 
@@ -41,6 +42,28 @@ else
         </div>
     </dl>
 
+    @if (_raceResults.Count > 0)
+    {
+        <div class="card race-result-card">
+            <h3>Løbsresultat</h3>
+            @foreach (var result in _raceResults)
+            {
+                <p>
+                    @result.Provider · @result.EventName
+                    @if (result.Category is { } cat) { <text> · Kategori @cat</text> }
+                    @if (result.Position is { } pos)
+                    {
+                        <text> · Nummer @pos@(result.FieldSize is { } size ? $" af {size}" : "")</text>
+                    }
+                    @if (result.RatingChange is { } change)
+                    {
+                        <text> · vELO @(change >= 0 ? "+" : "")@change.ToString("F1")</text>
+                    }
+                </p>
+            }
+        </div>
+    }
+
     @if (_report is null)
     {
         <button class="btn btn-primary" @onclick="AnalyzeAsync" disabled="@_analyzing">
@@ -68,6 +91,7 @@ else
 
     private Activity? _activity;
     private AnalysisReport? _report;
+    private IReadOnlyList<RaceResult> _raceResults = Array.Empty<RaceResult>();
     private bool _analyzing;
     private string? _analysisError;
     private string _userId = string.Empty;
@@ -79,7 +103,10 @@ else
 
         _activity = await ActivityRepository.GetByIdAsync(ActivityId, _userId);
         if (_activity is not null)
+        {
             _report = await AnalysisReportRepository.GetForActivityAsync(_activity.Id);
+            _raceResults = await RaceResultRepository.GetForActivityAsync(_activity.Id);
+        }
     }
 
     private async Task AnalyzeAsync()
