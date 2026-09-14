@@ -40,6 +40,17 @@ public class FakeRaceResultRepository : IRaceResultRepository
         Task.FromResult<IReadOnlyList<RaceResult>>(
             _results.Where(r => r.ActivityId == activityId).ToList());
 
+    public Task<IReadOnlyDictionary<int, IReadOnlyList<RaceResult>>> GetForActivitiesAsync(
+        string userId, IReadOnlyList<int> activityIds)
+    {
+        var lookup = _results
+            .Where(r => r.UserId == userId && r.ActivityId is not null && activityIds.Contains(r.ActivityId.Value))
+            .GroupBy(r => r.ActivityId!.Value)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<RaceResult>)g.ToList());
+
+        return Task.FromResult<IReadOnlyDictionary<int, IReadOnlyList<RaceResult>>>(lookup);
+    }
+
     public Task LinkToActivityAsync(int raceResultId, int activityId)
     {
         var result = _results.FirstOrDefault(r => r.Id == raceResultId);

@@ -53,6 +53,18 @@ public class EfRaceResultRepository : IRaceResultRepository
             .ToListAsync();
     }
 
+    public async Task<IReadOnlyDictionary<int, IReadOnlyList<RaceResult>>> GetForActivitiesAsync(
+        string userId, IReadOnlyList<int> activityIds)
+    {
+        var results = await _context.RaceResults
+            .Where(r => r.UserId == userId && r.ActivityId != null && activityIds.Contains(r.ActivityId.Value))
+            .ToListAsync();
+
+        return results
+            .GroupBy(r => r.ActivityId!.Value)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<RaceResult>)g.ToList());
+    }
+
     public async Task LinkToActivityAsync(int raceResultId, int activityId)
     {
         var result = await _context.RaceResults.FindAsync(raceResultId);
