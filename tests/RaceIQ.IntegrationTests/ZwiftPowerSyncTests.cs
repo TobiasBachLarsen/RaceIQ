@@ -72,4 +72,39 @@ public class ZwiftPowerSyncTests : IClassFixture<RaceIQApiFactory>
         var unmatched = await raceResultRepository.GetUnmatchedForUserAsync(user.Id);
         Assert.Empty(unmatched);
     }
+
+    [Fact]
+    public async Task SyncAsync_ExpiredCookieReturnsLoginPage_FlipsAccountToNeedsReconnect()
+    {
+        // HttpClient follows redirects by default, so an expired ZwiftPower session cookie
+        // doesn't come back as a network error - it comes back as a real HTTP 200 with an
+        // HTML login page body. EnsureSuccessStatusCode() passes on that; the failure only
+        // shows up when ReadFromJsonAsync tries to parse HTML as JSON. This simulates that
+        // exact response shape (200 OK, text/html body) to prove the sync service catches
+        // it and flips the account to NeedsReconnect instead of leaking the exception.
+        _factory.ZwiftPowerApiResponder = _ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("<html><body>Please log in</body></html>", System.Text.Encoding.UTF8, "text/html")
+        };
+
+        using var scope = _factory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = new ApplicationUser { UserName = "zpexpired@example.com", Email = "zpexpired@example.com" };
+        await userManager.CreateAsync(user, "P@ssw0rd!");
+
+        var accountRepository = scope.ServiceProvider.GetRequiredService<IConnectedAccountRepository>();
+        await accountRepository.UpsertAsync(new ConnectedAccount
+        {
+            UserId = user.Id,
+            Provider = ConnectedAccountProvider.ZwiftPower,
+            AccessToken = "stale-cookie",
+            ExternalAccountId = "12345"
+        });
+
+        var syncService = scope.ServiceProvider.GetRequiredService<IZwiftPowerSyncService>();
+        await syncService.SyncAsync(user.Id);
+
+        var account = await accountRepository.GetAsync(user.Id, ConnectedAccountProvider.ZwiftPower);
+        Assert.Equal(ConnectedAccountStatus.NeedsReconnect, account!.Status);
+    }
 }
