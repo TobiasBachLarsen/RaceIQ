@@ -7,9 +7,13 @@
 @using RaceIQ.Application
 @using RaceIQ.Domain
 @using RaceIQ.Infrastructure.Strava
+@using RaceIQ.Infrastructure.ZwiftPower
+@using RaceIQ.Infrastructure.ZwiftRacing
 @inject IConnectedAccountRepository ConnectedAccountRepository
 @inject IActivityRepository ActivityRepository
 @inject IStravaSyncService StravaSyncService
+@inject IZwiftPowerSyncService ZwiftPowerSyncService
+@inject IZwiftRacingSyncService ZwiftRacingSyncService
 @inject ILogger<Dashboard> Logger
 
 <div class="dashboard-header">
@@ -162,18 +166,42 @@ else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
             Logger.LogError(ex, "Strava sync failed for user {UserId}", _userId);
             _syncError = "Synkronisering fejlede. Prøv igen om lidt.";
         }
-        finally
-        {
-            _syncing = false;
 
+        if (_zwiftPowerAccount is not null)
+        {
             try
             {
-                _connectedAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.Strava);
+                await ZwiftPowerSyncService.SyncAsync(_userId);
             }
-            catch
+            catch (Exception ex)
             {
-                // best-effort status refresh — keep the last known value rather than crashing the circuit
+                Logger.LogError(ex, "ZwiftPower sync failed for user {UserId}", _userId);
             }
+        }
+
+        if (_zwiftRacingAccount is not null)
+        {
+            try
+            {
+                await ZwiftRacingSyncService.SyncAsync(_userId);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "ZwiftRacing sync failed for user {UserId}", _userId);
+            }
+        }
+
+        _syncing = false;
+
+        try
+        {
+            _connectedAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.Strava);
+            _zwiftPowerAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.ZwiftPower);
+            _zwiftRacingAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.ZwiftRacing);
+        }
+        catch
+        {
+            // best-effort status refresh — keep the last known values rather than crashing the circuit
         }
     }
 }
