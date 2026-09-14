@@ -102,6 +102,7 @@ app.MapAdditionalIdentityEndpoints();
 
 app.MapStravaAuthEndpoints();
 app.MapZwiftPowerAuthEndpoints();
+app.MapZwiftRacingAuthEndpoints();
 
 app.Run();
 
