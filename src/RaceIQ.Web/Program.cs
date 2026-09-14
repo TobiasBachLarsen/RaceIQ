@@ -9,6 +9,7 @@ using RaceIQ.Infrastructure;
 using RaceIQ.Infrastructure.Claude;
 using RaceIQ.Infrastructure.Strava;
 using RaceIQ.Infrastructure.ZwiftPower;
+using RaceIQ.Infrastructure.ZwiftRacing;
 using RaceIQ.Application;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -47,6 +48,9 @@ builder.Services.AddHttpClient<IZwiftPowerApiClient, ZwiftPowerApiClient>();
 builder.Services.AddScoped<IZwiftPowerSyncService, ZwiftPowerSyncService>();
 builder.Services.AddScoped<IRaceResultRepository, EfRaceResultRepository>();
 builder.Services.AddScoped<IRaceResultMatcher, RaceResultMatcher>();
+
+builder.Services.AddHttpClient<IZwiftRacingApiClient, ZwiftRacingApiClient>();
+builder.Services.AddScoped<IZwiftRacingSyncService, ZwiftRacingSyncService>();
 
 var anthropicApiKey = builder.Configuration["Anthropic:ApiKey"];
 if (string.IsNullOrWhiteSpace(anthropicApiKey))
