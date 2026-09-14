@@ -7,25 +7,19 @@ namespace RaceIQ.Infrastructure.ZwiftPower;
 public class ZwiftPowerSyncService : IProviderSyncService
 {
     private readonly IZwiftPowerApiClient _apiClient;
-    private readonly IRaceResultRepository _raceResultRepository;
-    private readonly IRaceResultMatcher _matcher;
-    private readonly IActivityRepository _activityRepository;
     private readonly IConnectedAccountRepository _accountRepository;
+    private readonly RaceResultImporter _importer;
 
     public ConnectedAccountProvider Provider => ConnectedAccountProvider.ZwiftPower;
 
     public ZwiftPowerSyncService(
         IZwiftPowerApiClient apiClient,
-        IRaceResultRepository raceResultRepository,
-        IRaceResultMatcher matcher,
-        IActivityRepository activityRepository,
-        IConnectedAccountRepository accountRepository)
+        IConnectedAccountRepository accountRepository,
+        RaceResultImporter importer)
     {
         _apiClient = apiClient;
-        _raceResultRepository = raceResultRepository;
-        _matcher = matcher;
-        _activityRepository = activityRepository;
         _accountRepository = accountRepository;
+        _importer = importer;
     }
 
     public async Task SyncAsync(string userId)
@@ -55,45 +49,18 @@ public class ZwiftPowerSyncService : IProviderSyncService
             return;
         }
 
-        var activities = await _activityRepository.GetAllForUserAsync(userId);
-        var matchedResultIds = new HashSet<int>();
-
-        foreach (var result in results)
+        var incoming = results.Select(result => new RaceResult
         {
-            var stored = await _raceResultRepository.UpsertAsync(new RaceResult
-            {
-                UserId = userId,
-                Provider = ConnectedAccountProvider.ZwiftPower,
-                ProviderResultId = result.RaceId,
-                EventName = result.EventName,
-                EventDate = result.EventDate,
-                Category = result.Category,
-                Position = result.Position,
-                Duration = result.Duration
-            });
+            UserId = userId,
+            Provider = ConnectedAccountProvider.ZwiftPower,
+            ProviderResultId = result.RaceId,
+            EventName = result.EventName,
+            EventDate = result.EventDate,
+            Category = result.Category,
+            Position = result.Position,
+            Duration = result.Duration
+        }).ToList();
 
-            matchedResultIds.Add(stored.Id);
-
-            if (stored.ActivityId is null)
-            {
-                var match = _matcher.FindMatch(stored, activities);
-                if (match is not null)
-                    await _raceResultRepository.LinkToActivityAsync(stored.Id, match.Id);
-            }
-        }
-
-        // Retry any still-unmatched results from earlier syncs against this sync's freshly
-        // loaded activities - e.g. a race result that arrived before its matching Strava
-        // activity had synced. Skip rows we already just upserted above in this same pass.
-        var unmatched = await _raceResultRepository.GetUnmatchedForUserAsync(userId);
-        foreach (var result in unmatched)
-        {
-            if (matchedResultIds.Contains(result.Id))
-                continue;
-
-            var match = _matcher.FindMatch(result, activities);
-            if (match is not null)
-                await _raceResultRepository.LinkToActivityAsync(result.Id, match.Id);
-        }
+        await _importer.ImportAsync(userId, incoming);
     }
 }

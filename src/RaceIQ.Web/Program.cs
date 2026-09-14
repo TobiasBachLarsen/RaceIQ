@@ -50,6 +50,7 @@ builder.Services.AddScoped<ZwiftPowerSyncService>();
 builder.Services.AddScoped<IProviderSyncService>(sp => sp.GetRequiredService<ZwiftPowerSyncService>());
 builder.Services.AddScoped<IRaceResultRepository, EfRaceResultRepository>();
 builder.Services.AddScoped<IRaceResultMatcher, RaceResultMatcher>();
+builder.Services.AddScoped<RaceResultImporter>();
 
 builder.Services.AddHttpClient<IZwiftRacingApiClient, ZwiftRacingApiClient>();
 builder.Services.AddScoped<ZwiftRacingSyncService>();
