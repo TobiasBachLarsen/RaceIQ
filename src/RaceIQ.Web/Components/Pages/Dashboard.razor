@@ -11,6 +11,7 @@
 @using RaceIQ.Infrastructure.ZwiftRacing
 @inject IConnectedAccountRepository ConnectedAccountRepository
 @inject IActivityRepository ActivityRepository
+@inject IRaceResultRepository RaceResultRepository
 @inject IStravaSyncService StravaSyncService
 @inject IZwiftPowerSyncService ZwiftPowerSyncService
 @inject IZwiftRacingSyncService ZwiftRacingSyncService
@@ -101,7 +102,7 @@ else if (_zwiftRacingAccount.Status == ConnectedAccountStatus.NeedsReconnect)
     <div class="table-wrap">
         <table class="rides-table">
             <thead>
-                <tr><th>Tur</th><th>Dato</th><th>Distance</th><th>Snit effekt</th></tr>
+                <tr><th>Tur</th><th>Dato</th><th>Distance</th><th>Snit effekt</th><th>Løb</th></tr>
             </thead>
             <tbody>
                 @foreach (var activity in _activities)
@@ -111,6 +112,14 @@ else if (_zwiftRacingAccount.Status == ConnectedAccountStatus.NeedsReconnect)
                         <td>@activity.StartedAt.ToShortDateString()</td>
                         <td class="num">@((activity.DistanceMeters / 1000).ToString("F1")) km</td>
                         <td class="num">@(activity.AveragePowerWatts?.ToString("F0") ?? "-") W</td>
+                        <td class="num">
+                            @if (_raceResultsByActivityId.TryGetValue(activity.Id, out var raceResults))
+                            {
+                                var position = raceResults.Select(r => r.Position).FirstOrDefault(p => p is not null);
+                                var category = raceResults.Select(r => r.Category).FirstOrDefault(c => c is not null);
+                                @($"P{position?.ToString() ?? "-"}" + (category is { } cat ? $" · Cat {cat}" : ""))
+                            }
+                        </td>
                     </tr>
                 }
             </tbody>
@@ -132,6 +141,7 @@ else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
     private ConnectedAccount? _zwiftPowerAccount;
     private ConnectedAccount? _zwiftRacingAccount;
     private IReadOnlyList<Activity>? _activities;
+    private Dictionary<int, IReadOnlyList<RaceResult>> _raceResultsByActivityId = new();
     private bool _syncing;
     private string? _syncError;
     private string _userId = string.Empty;
@@ -143,12 +153,24 @@ else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
         _zwiftPowerAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.ZwiftPower);
         _zwiftRacingAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.ZwiftRacing);
         _activities = await ActivityRepository.GetAllForUserAsync(_userId);
+        await LoadRaceResultsAsync();
     }
 
     private async Task<string> GetUserIdAsync()
     {
         var state = await AuthState!;
         return state.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+    }
+
+    private async Task LoadRaceResultsAsync()
+    {
+        _raceResultsByActivityId = new Dictionary<int, IReadOnlyList<RaceResult>>();
+        foreach (var activity in _activities ?? Array.Empty<Activity>())
+        {
+            var results = await RaceResultRepository.GetForActivityAsync(activity.Id);
+            if (results.Count > 0)
+                _raceResultsByActivityId[activity.Id] = results;
+        }
     }
 
     private async Task SyncAsync()
@@ -190,6 +212,8 @@ else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
                 Logger.LogError(ex, "ZwiftRacing sync failed for user {UserId}", _userId);
             }
         }
+
+        await LoadRaceResultsAsync();
 
         _syncing = false;
 
