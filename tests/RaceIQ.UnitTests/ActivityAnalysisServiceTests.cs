@@ -46,7 +46,7 @@ public class ActivityAnalysisServiceTests
             StreamDataJson = JsonSerializer.Serialize(stream)
         };
 
-        var prompt = ActivityAnalysisService.BuildPrompt(activity);
+        var prompt = ActivityAnalysisService.BuildPrompt(activity, Array.Empty<RaceResult>());
 
         Assert.Contains("Morning Zwift race", prompt);
         Assert.Contains("210", prompt);
@@ -56,12 +56,75 @@ public class ActivityAnalysisServiceTests
     }
 
     [Fact]
+    public void BuildPrompt_WithMatchedRaceResult_StatesRaceContextDirectly()
+    {
+        var activity = new Activity
+        {
+            UserId = "user-1",
+            StravaActivityId = "1",
+            Name = "Crit Race",
+            StreamDataJson = "[]"
+        };
+        var raceResult = new RaceResult
+        {
+            UserId = "user-1",
+            Provider = ConnectedAccountProvider.ZwiftPower,
+            ProviderResultId = "999",
+            EventName = "Crit Race",
+            EventDate = DateTime.UtcNow,
+            Category = "B",
+            Position = 4,
+            FieldSize = 38
+        };
+
+        var prompt = ActivityAnalysisService.BuildPrompt(activity, new[] { raceResult });
+
+        Assert.Contains("category B race", prompt);
+        Assert.Contains("finished 4 of 38", prompt);
+        Assert.DoesNotContain("may have been done alone", prompt);
+    }
+
+    [Fact]
+    public void BuildPrompt_IsRaceButNoMatchedResult_StatesRaceWithoutDetails()
+    {
+        var activity = new Activity
+        {
+            UserId = "user-1",
+            StravaActivityId = "1",
+            Name = "Unmatched Race",
+            StreamDataJson = "[]",
+            WorkoutType = 11
+        };
+
+        var prompt = ActivityAnalysisService.BuildPrompt(activity, Array.Empty<RaceResult>());
+
+        Assert.Contains("This was a race, though no result details", prompt);
+    }
+
+    [Fact]
+    public void BuildPrompt_NotARaceAndNoResult_UsesHedgedFraming()
+    {
+        var activity = new Activity
+        {
+            UserId = "user-1",
+            StravaActivityId = "1",
+            Name = "Sunday Spin",
+            StreamDataJson = "[]"
+        };
+
+        var prompt = ActivityAnalysisService.BuildPrompt(activity, Array.Empty<RaceResult>());
+
+        Assert.Contains("may have been done alone", prompt);
+    }
+
+    [Fact]
     public async Task AnalyzeAsync_PersistsReport_GroundedInThePrompt()
     {
         var activityRepository = new FakeActivityRepository();
         var reportRepository = new FakeAnalysisReportRepository();
         var claudeClient = new FakeClaudeClient { ResponseText = "Great even pacing." };
-        var service = new ActivityAnalysisService(activityRepository, reportRepository, claudeClient);
+        var service = new ActivityAnalysisService(
+            activityRepository, reportRepository, claudeClient, new FakeRaceResultRepository());
 
         var stream = new List<StreamPoint> { new(0, 200, 140, 90, 10, 0) };
         var activity = await activityRepository.AddAsync(new Activity
@@ -83,7 +146,8 @@ public class ActivityAnalysisServiceTests
     public async Task AnalyzeAsync_UnknownActivity_ThrowsActivityNotFoundException()
     {
         var service = new ActivityAnalysisService(
-            new FakeActivityRepository(), new FakeAnalysisReportRepository(), new FakeClaudeClient());
+            new FakeActivityRepository(), new FakeAnalysisReportRepository(), new FakeClaudeClient(),
+            new FakeRaceResultRepository());
 
         await Assert.ThrowsAsync<ActivityNotFoundException>(
             () => service.AnalyzeAsync(999, "user-1"));
@@ -94,7 +158,8 @@ public class ActivityAnalysisServiceTests
     {
         var activityRepository = new FakeActivityRepository();
         var service = new ActivityAnalysisService(
-            activityRepository, new FakeAnalysisReportRepository(), new FakeClaudeClient());
+            activityRepository, new FakeAnalysisReportRepository(), new FakeClaudeClient(),
+            new FakeRaceResultRepository());
 
         var activity = await activityRepository.AddAsync(new Activity
         {
