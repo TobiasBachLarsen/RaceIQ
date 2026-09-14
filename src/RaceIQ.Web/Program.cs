@@ -55,6 +55,8 @@ builder.Services.AddHttpClient<IZwiftRacingApiClient, ZwiftRacingApiClient>();
 builder.Services.AddScoped<ZwiftRacingSyncService>();
 builder.Services.AddScoped<IProviderSyncService>(sp => sp.GetRequiredService<ZwiftRacingSyncService>());
 
+builder.Services.AddScoped<SyncCoordinator>();
+
 var anthropicApiKey = builder.Configuration["Anthropic:ApiKey"];
 if (string.IsNullOrWhiteSpace(anthropicApiKey))
 {
