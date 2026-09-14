@@ -66,7 +66,7 @@ public class ZwiftRacingSyncTests : IClassFixture<RaceIQApiFactory>
             StreamDataJson = "[]"
         });
 
-        var syncService = scope.ServiceProvider.GetRequiredService<IZwiftRacingSyncService>();
+        var syncService = scope.ServiceProvider.GetRequiredService<ZwiftRacingSyncService>();
         await syncService.SyncAsync(user.Id);
 
         var raceResultRepository = scope.ServiceProvider.GetRequiredService<IRaceResultRepository>();
@@ -116,7 +116,7 @@ public class ZwiftRacingSyncTests : IClassFixture<RaceIQApiFactory>
             ExternalAccountId = "12345"
         });
 
-        var syncService = scope.ServiceProvider.GetRequiredService<IZwiftRacingSyncService>();
+        var syncService = scope.ServiceProvider.GetRequiredService<ZwiftRacingSyncService>();
         await syncService.SyncAsync(user.Id);
 
         var account = await accountRepository.GetAsync(user.Id, ConnectedAccountProvider.ZwiftRacing);

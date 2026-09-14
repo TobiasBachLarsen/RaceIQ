@@ -49,7 +49,7 @@ public class SyncAndAnalyzeFlowTests : IClassFixture<RaceIQApiFactory>
             TokenExpiresAt = DateTime.UtcNow.AddHours(1)
         });
 
-        var syncService = scope.ServiceProvider.GetRequiredService<IStravaSyncService>();
+        var syncService = scope.ServiceProvider.GetRequiredService<StravaSyncService>();
         await syncService.SyncAsync(user.Id);
 
         var activityRepository = scope.ServiceProvider.GetRequiredService<IActivityRepository>();

@@ -41,16 +41,19 @@ builder.Services.AddScoped<IConnectedAccountRepository, EfConnectedAccountReposi
 
 builder.Services.AddSingleton<StravaRequestThrottle>();
 builder.Services.AddHttpClient<IStravaApiClient, StravaApiClient>();
-builder.Services.AddScoped<IStravaSyncService, StravaSyncService>();
+builder.Services.AddScoped<StravaSyncService>();
+builder.Services.AddScoped<IProviderSyncService>(sp => sp.GetRequiredService<StravaSyncService>());
 builder.Services.AddScoped<IActivityRepository, EfActivityRepository>();
 
 builder.Services.AddHttpClient<IZwiftPowerApiClient, ZwiftPowerApiClient>();
-builder.Services.AddScoped<IZwiftPowerSyncService, ZwiftPowerSyncService>();
+builder.Services.AddScoped<ZwiftPowerSyncService>();
+builder.Services.AddScoped<IProviderSyncService>(sp => sp.GetRequiredService<ZwiftPowerSyncService>());
 builder.Services.AddScoped<IRaceResultRepository, EfRaceResultRepository>();
 builder.Services.AddScoped<IRaceResultMatcher, RaceResultMatcher>();
 
 builder.Services.AddHttpClient<IZwiftRacingApiClient, ZwiftRacingApiClient>();
-builder.Services.AddScoped<IZwiftRacingSyncService, ZwiftRacingSyncService>();
+builder.Services.AddScoped<ZwiftRacingSyncService>();
+builder.Services.AddScoped<IProviderSyncService>(sp => sp.GetRequiredService<ZwiftRacingSyncService>());
 
 var anthropicApiKey = builder.Configuration["Anthropic:ApiKey"];
 if (string.IsNullOrWhiteSpace(anthropicApiKey))
