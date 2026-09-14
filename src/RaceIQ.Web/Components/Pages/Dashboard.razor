@@ -110,17 +110,36 @@ else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
     protected override async Task OnInitializedAsync()
     {
         _userId = await GetUserIdAsync();
-        _connectedAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.Strava);
-        _zwiftPowerAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.ZwiftPower);
-        _zwiftRacingAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.ZwiftRacing);
-        _activities = await ActivityRepository.GetAllForUserAsync(_userId);
-        await LoadRaceResultsAsync();
+        await LoadStateAsync();
     }
 
     private async Task<string> GetUserIdAsync()
     {
         var state = await AuthState!;
         return state.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+    }
+
+    // The full dashboard state: the three provider accounts plus activities and their
+    // race results. Used as-is on first load; SyncAsync below reloads the same two
+    // halves (accounts, activities+race-results) separately instead, since it needs
+    // different error handling for each.
+    private async Task LoadStateAsync()
+    {
+        await LoadAccountsAsync();
+        await LoadActivitiesAndRaceResultsAsync();
+    }
+
+    private async Task LoadAccountsAsync()
+    {
+        _connectedAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.Strava);
+        _zwiftPowerAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.ZwiftPower);
+        _zwiftRacingAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.ZwiftRacing);
+    }
+
+    private async Task LoadActivitiesAndRaceResultsAsync()
+    {
+        _activities = await ActivityRepository.GetAllForUserAsync(_userId);
+        await LoadRaceResultsAsync();
     }
 
     private async Task LoadRaceResultsAsync()
@@ -143,8 +162,7 @@ else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
 
             try
             {
-                _activities = await ActivityRepository.GetAllForUserAsync(_userId);
-                await LoadRaceResultsAsync();
+                await LoadActivitiesAndRaceResultsAsync();
             }
             catch (Exception ex)
             {
@@ -153,9 +171,7 @@ else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
 
             try
             {
-                _connectedAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.Strava);
-                _zwiftPowerAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.ZwiftPower);
-                _zwiftRacingAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.ZwiftRacing);
+                await LoadAccountsAsync();
             }
             catch
             {
