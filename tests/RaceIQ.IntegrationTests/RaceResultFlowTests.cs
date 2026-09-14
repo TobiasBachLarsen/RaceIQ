@@ -77,9 +77,9 @@ public class RaceResultFlowTests : IClassFixture<RaceIQApiFactory>
             AccessToken = "fake-key", ExternalAccountId = "555"
         });
 
-        await scope.ServiceProvider.GetRequiredService<IStravaSyncService>().SyncAsync(user.Id);
-        await scope.ServiceProvider.GetRequiredService<IZwiftPowerSyncService>().SyncAsync(user.Id);
-        await scope.ServiceProvider.GetRequiredService<IZwiftRacingSyncService>().SyncAsync(user.Id);
+        await scope.ServiceProvider.GetRequiredService<StravaSyncService>().SyncAsync(user.Id);
+        await scope.ServiceProvider.GetRequiredService<ZwiftPowerSyncService>().SyncAsync(user.Id);
+        await scope.ServiceProvider.GetRequiredService<ZwiftRacingSyncService>().SyncAsync(user.Id);
 
         var activityRepository = scope.ServiceProvider.GetRequiredService<IActivityRepository>();
         var activities = await activityRepository.GetAllForUserAsync(user.Id);

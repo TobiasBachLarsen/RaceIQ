@@ -4,13 +4,15 @@ using RaceIQ.Domain;
 
 namespace RaceIQ.Infrastructure.ZwiftRacing;
 
-public class ZwiftRacingSyncService : IZwiftRacingSyncService
+public class ZwiftRacingSyncService : IProviderSyncService
 {
     private readonly IZwiftRacingApiClient _apiClient;
     private readonly IRaceResultRepository _raceResultRepository;
     private readonly IRaceResultMatcher _matcher;
     private readonly IActivityRepository _activityRepository;
     private readonly IConnectedAccountRepository _accountRepository;
+
+    public ConnectedAccountProvider Provider => ConnectedAccountProvider.ZwiftRacing;
 
     public ZwiftRacingSyncService(
         IZwiftRacingApiClient apiClient,

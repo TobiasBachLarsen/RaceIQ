@@ -5,12 +5,14 @@ using RaceIQ.Domain;
 
 namespace RaceIQ.Infrastructure.Strava;
 
-public class StravaSyncService : IStravaSyncService
+public class StravaSyncService : IProviderSyncService
 {
     private readonly IStravaApiClient _apiClient;
     private readonly IStravaOAuthService _oauthService;
     private readonly IActivityRepository _activityRepository;
     private readonly IConnectedAccountRepository _accountRepository;
+
+    public ConnectedAccountProvider Provider => ConnectedAccountProvider.Strava;
 
     public StravaSyncService(
         IStravaApiClient apiClient,
