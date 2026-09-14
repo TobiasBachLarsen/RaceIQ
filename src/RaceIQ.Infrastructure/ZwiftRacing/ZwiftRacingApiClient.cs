@@ -1,4 +1,3 @@
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 
@@ -82,7 +81,11 @@ public class ZwiftRacingApiClient : IZwiftRacingApiClient
     private async Task<IReadOnlyList<string>> DiscoverRecentRaceIdsAsync(string apiKey, string zwiftRiderId)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, $"{BaseUrl}/public/riders/{Uri.EscapeDataString(zwiftRiderId)}");
-        request.Headers.Authorization = AuthenticationHeaderValue.Parse(apiKey);
+        // TryAddWithoutValidation rather than AuthenticationHeaderValue.Parse(apiKey):
+        // Parse throws FormatException on a pasted API key containing characters that
+        // aren't valid in an HTTP token, which would surface as an unhandled exception
+        // instead of a clean NeedsReconnect. This was the plan's own prescribed fallback.
+        request.Headers.TryAddWithoutValidation("Authorization", apiKey);
 
         var response = await _httpClient.SendAsync(request);
         response.EnsureSuccessStatusCode();
@@ -94,7 +97,11 @@ public class ZwiftRacingApiClient : IZwiftRacingApiClient
     private async Task<ZwiftRacingRaceDetailPayload> GetRaceResultAsync(string apiKey, string raceId)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, $"{BaseUrl}/public/results/{Uri.EscapeDataString(raceId)}");
-        request.Headers.Authorization = AuthenticationHeaderValue.Parse(apiKey);
+        // TryAddWithoutValidation rather than AuthenticationHeaderValue.Parse(apiKey):
+        // Parse throws FormatException on a pasted API key containing characters that
+        // aren't valid in an HTTP token, which would surface as an unhandled exception
+        // instead of a clean NeedsReconnect. This was the plan's own prescribed fallback.
+        request.Headers.TryAddWithoutValidation("Authorization", apiKey);
 
         var response = await _httpClient.SendAsync(request);
         response.EnsureSuccessStatusCode();

@@ -86,4 +86,40 @@ public class ZwiftRacingSyncTests : IClassFixture<RaceIQApiFactory>
         var resultsAfterResync = await raceResultRepository.GetForActivityAsync(activity.Id);
         Assert.Single(resultsAfterResync);
     }
+
+    [Fact]
+    public async Task SyncAsync_ExpiredApiKeyReturnsLoginPage_FlipsAccountToNeedsReconnect()
+    {
+        // HttpClient follows redirects by default, so an expired/invalid ZwiftRacing API
+        // key doesn't come back as a network error - it comes back as a real HTTP 200 with
+        // an HTML login page body. EnsureSuccessStatusCode() passes on that; the failure
+        // only shows up when ReadFromJsonAsync tries to parse HTML as JSON. This simulates
+        // that exact response shape (200 OK, text/html body) to prove the sync service
+        // catches it and flips the account to NeedsReconnect instead of leaking the
+        // exception.
+        _factory.ZwiftRacingApiResponder = _ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("<html><body>Please log in</body></html>", System.Text.Encoding.UTF8, "text/html")
+        };
+
+        using var scope = _factory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = new ApplicationUser { UserName = "zrexpired@example.com", Email = "zrexpired@example.com" };
+        await userManager.CreateAsync(user, "P@ssw0rd!");
+
+        var accountRepository = scope.ServiceProvider.GetRequiredService<IConnectedAccountRepository>();
+        await accountRepository.UpsertAsync(new ConnectedAccount
+        {
+            UserId = user.Id,
+            Provider = ConnectedAccountProvider.ZwiftRacing,
+            AccessToken = "stale-api-key",
+            ExternalAccountId = "12345"
+        });
+
+        var syncService = scope.ServiceProvider.GetRequiredService<IZwiftRacingSyncService>();
+        await syncService.SyncAsync(user.Id);
+
+        var account = await accountRepository.GetAsync(user.Id, ConnectedAccountProvider.ZwiftRacing);
+        Assert.Equal(ConnectedAccountStatus.NeedsReconnect, account!.Status);
+    }
 }

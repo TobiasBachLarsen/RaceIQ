@@ -39,14 +39,22 @@ public class ZwiftPowerSyncService : IZwiftPowerSyncService
         {
             results = await _apiClient.GetRecentResultsAsync(account.AccessToken, account.ExternalAccountId!);
         }
-        catch (HttpRequestException)
+        catch (Exception)
         {
+            // Covers both a real network failure (HttpRequestException) and an expired
+            // session that HttpClient's default redirect-following turns into an HTTP 200
+            // login-page response: EnsureSuccessStatusCode() passes on that, and the
+            // subsequent ReadFromJsonAsync<T> call is what actually throws (JsonException,
+            // NotSupportedException depending on the returned content-type, or
+            // TaskCanceledException on a slow/broken redirect chain). Any of these shapes
+            // means the credential can no longer be used, so treat them the same way.
             account.Status = ConnectedAccountStatus.NeedsReconnect;
             await _accountRepository.UpsertAsync(account);
             return;
         }
 
         var activities = await _activityRepository.GetAllForUserAsync(userId);
+        var matchedResultIds = new HashSet<int>();
 
         foreach (var result in results)
         {
@@ -62,12 +70,28 @@ public class ZwiftPowerSyncService : IZwiftPowerSyncService
                 Duration = result.Duration
             });
 
+            matchedResultIds.Add(stored.Id);
+
             if (stored.ActivityId is null)
             {
                 var match = _matcher.FindMatch(stored, activities);
                 if (match is not null)
                     await _raceResultRepository.LinkToActivityAsync(stored.Id, match.Id);
             }
+        }
+
+        // Retry any still-unmatched results from earlier syncs against this sync's freshly
+        // loaded activities - e.g. a race result that arrived before its matching Strava
+        // activity had synced. Skip rows we already just upserted above in this same pass.
+        var unmatched = await _raceResultRepository.GetUnmatchedForUserAsync(userId);
+        foreach (var result in unmatched)
+        {
+            if (matchedResultIds.Contains(result.Id))
+                continue;
+
+            var match = _matcher.FindMatch(result, activities);
+            if (match is not null)
+                await _raceResultRepository.LinkToActivityAsync(result.Id, match.Id);
         }
     }
 }

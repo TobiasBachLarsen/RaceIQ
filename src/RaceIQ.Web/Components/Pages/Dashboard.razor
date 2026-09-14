@@ -44,15 +44,23 @@ else if (_connectedAccount.Status == ConnectedAccountStatus.NeedsReconnect)
     </div>
 }
 
-@if (_zwiftPowerAccount is null)
+@if (_zwiftPowerAccount is null || _zwiftPowerAccount.Status == ConnectedAccountStatus.NeedsReconnect)
 {
     <div class="card empty-state">
-        <p>
-            Forbind ZwiftPower for at få dine løbsresultater vist. Log ind på
-            <a href="https://zwiftpower.com" target="_blank" rel="noopener">zwiftpower.com</a>,
-            åbn browserens udviklerværktøjer (Application/Storage → Cookies), kopiér din
-            session-cookie, og find dit Zwift-rytter-id på din profilside (tallet i URL'en).
-        </p>
+        @if (_zwiftPowerAccount is { Status: ConnectedAccountStatus.NeedsReconnect })
+        {
+            <span class="status-badge status-badge--warning">ZwiftPower skal genoprettes</span>
+            <p>Cookien er sandsynligvis udløbet. Gentag forbindelsen nedenfor med en frisk cookie.</p>
+        }
+        else
+        {
+            <p>
+                Forbind ZwiftPower for at få dine løbsresultater vist. Log ind på
+                <a href="https://zwiftpower.com" target="_blank" rel="noopener">zwiftpower.com</a>,
+                åbn browserens udviklerværktøjer (Application/Storage → Cookies), kopiér din
+                session-cookie, og find dit Zwift-rytter-id på din profilside (tallet i URL'en).
+            </p>
+        }
         <form method="post" action="/zwiftpower/connect">
             <AntiforgeryToken />
             <input class="form-control mb-3" name="sessionCookie" placeholder="Session-cookie" required />
@@ -61,34 +69,28 @@ else if (_connectedAccount.Status == ConnectedAccountStatus.NeedsReconnect)
         </form>
     </div>
 }
-else if (_zwiftPowerAccount.Status == ConnectedAccountStatus.NeedsReconnect)
-{
-    <div class="card empty-state">
-        <span class="status-badge status-badge--warning">ZwiftPower skal genoprettes</span>
-        <p>Cookien er sandsynligvis udløbet. Gentag forbindelsen ovenfor med en frisk cookie.</p>
-    </div>
-}
 
-@if (_zwiftRacingAccount is null)
+@if (_zwiftRacingAccount is null || _zwiftRacingAccount.Status == ConnectedAccountStatus.NeedsReconnect)
 {
     <div class="card empty-state">
-        <p>
-            Forbind ZwiftRacing for vELO-data. Bed om en API-nøgle via deres Discord-server,
-            og find dit Zwift-rytter-id på din profil.
-        </p>
+        @if (_zwiftRacingAccount is { Status: ConnectedAccountStatus.NeedsReconnect })
+        {
+            <span class="status-badge status-badge--warning">ZwiftRacing skal genoprettes</span>
+            <p>Nøglen virker ikke længere. Forbind igen nedenfor.</p>
+        }
+        else
+        {
+            <p>
+                Forbind ZwiftRacing for vELO-data. Bed om en API-nøgle via deres Discord-server,
+                og find dit Zwift-rytter-id på din profil.
+            </p>
+        }
         <form method="post" action="/zwiftracing/connect">
             <AntiforgeryToken />
             <input class="form-control mb-3" name="apiKey" placeholder="API-nøgle" required />
             <input class="form-control mb-3" name="zwiftRiderId" placeholder="Zwift-rytter-id" required />
             <button type="submit" class="btn btn-primary">Forbind ZwiftRacing</button>
         </form>
-    </div>
-}
-else if (_zwiftRacingAccount.Status == ConnectedAccountStatus.NeedsReconnect)
-{
-    <div class="card empty-state">
-        <span class="status-badge status-badge--warning">ZwiftRacing skal genoprettes</span>
-        <p>Nøglen virker ikke længere. Forbind igen ovenfor.</p>
     </div>
 }
 
@@ -180,52 +182,66 @@ else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
 
         try
         {
-            await StravaSyncService.SyncAsync(_userId);
-            _activities = await ActivityRepository.GetAllForUserAsync(_userId);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Strava sync failed for user {UserId}", _userId);
-            _syncError = "Synkronisering fejlede. Prøv igen om lidt.";
-        }
-
-        if (_zwiftPowerAccount is not null)
-        {
             try
             {
-                await ZwiftPowerSyncService.SyncAsync(_userId);
+                await StravaSyncService.SyncAsync(_userId);
+                _activities = await ActivityRepository.GetAllForUserAsync(_userId);
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "ZwiftPower sync failed for user {UserId}", _userId);
+                Logger.LogError(ex, "Strava sync failed for user {UserId}", _userId);
+                _syncError = "Synkronisering fejlede. Prøv igen om lidt.";
             }
-        }
 
-        if (_zwiftRacingAccount is not null)
-        {
+            if (_zwiftPowerAccount is not null)
+            {
+                try
+                {
+                    await ZwiftPowerSyncService.SyncAsync(_userId);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "ZwiftPower sync failed for user {UserId}", _userId);
+                }
+            }
+
+            if (_zwiftRacingAccount is not null)
+            {
+                try
+                {
+                    await ZwiftRacingSyncService.SyncAsync(_userId);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "ZwiftRacing sync failed for user {UserId}", _userId);
+                }
+            }
+
             try
             {
-                await ZwiftRacingSyncService.SyncAsync(_userId);
+                await LoadRaceResultsAsync();
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "ZwiftRacing sync failed for user {UserId}", _userId);
+                Logger.LogError(ex, "Failed to reload race results for user {UserId}", _userId);
+            }
+
+            try
+            {
+                _connectedAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.Strava);
+                _zwiftPowerAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.ZwiftPower);
+                _zwiftRacingAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.ZwiftRacing);
+            }
+            catch
+            {
+                // best-effort status refresh — keep the last known values rather than crashing the circuit
             }
         }
-
-        await LoadRaceResultsAsync();
-
-        _syncing = false;
-
-        try
+        finally
         {
-            _connectedAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.Strava);
-            _zwiftPowerAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.ZwiftPower);
-            _zwiftRacingAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.ZwiftRacing);
-        }
-        catch
-        {
-            // best-effort status refresh — keep the last known values rather than crashing the circuit
+            // guarantees the sync button can never get stuck disabled, even if something
+            // above throws in a way none of the inner catches anticipated
+            _syncing = false;
         }
     }
 }
