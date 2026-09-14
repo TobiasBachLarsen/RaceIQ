@@ -6,15 +6,10 @@
 @using System.Security.Claims
 @using RaceIQ.Application
 @using RaceIQ.Domain
-@using RaceIQ.Infrastructure.Strava
-@using RaceIQ.Infrastructure.ZwiftPower
-@using RaceIQ.Infrastructure.ZwiftRacing
 @inject IConnectedAccountRepository ConnectedAccountRepository
 @inject IActivityRepository ActivityRepository
 @inject IRaceResultRepository RaceResultRepository
-@inject StravaSyncService StravaSyncService
-@inject ZwiftPowerSyncService ZwiftPowerSyncService
-@inject ZwiftRacingSyncService ZwiftRacingSyncService
+@inject SyncCoordinator SyncCoordinator
 @inject ILogger<Dashboard> Logger
 
 <div class="dashboard-header">
@@ -182,48 +177,18 @@ else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
 
         try
         {
-            try
-            {
-                await StravaSyncService.SyncAsync(_userId);
-                _activities = await ActivityRepository.GetAllForUserAsync(_userId);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "Strava sync failed for user {UserId}", _userId);
+            var outcome = await SyncCoordinator.SyncAllAsync(_userId);
+            if (outcome.StravaFailed)
                 _syncError = "Synkronisering fejlede. Prøv igen om lidt.";
-            }
-
-            if (_zwiftPowerAccount is not null)
-            {
-                try
-                {
-                    await ZwiftPowerSyncService.SyncAsync(_userId);
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError(ex, "ZwiftPower sync failed for user {UserId}", _userId);
-                }
-            }
-
-            if (_zwiftRacingAccount is not null)
-            {
-                try
-                {
-                    await ZwiftRacingSyncService.SyncAsync(_userId);
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError(ex, "ZwiftRacing sync failed for user {UserId}", _userId);
-                }
-            }
 
             try
             {
+                _activities = await ActivityRepository.GetAllForUserAsync(_userId);
                 await LoadRaceResultsAsync();
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "Failed to reload race results for user {UserId}", _userId);
+                Logger.LogError(ex, "Failed to reload activities and race results for user {UserId}", _userId);
             }
 
             try
