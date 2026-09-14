@@ -16,5 +16,10 @@ public interface IRaceResultRepository
     // ZwiftPower and ZwiftRacing matched the same real-world race.
     Task<IReadOnlyList<RaceResult>> GetForActivityAsync(int activityId);
 
+    // Same as GetForActivityAsync, but for many activities in one query - avoids an
+    // N+1 when a page needs race results for a whole list of activities at once.
+    Task<IReadOnlyDictionary<int, IReadOnlyList<RaceResult>>> GetForActivitiesAsync(
+        string userId, IReadOnlyList<int> activityIds);
+
     Task LinkToActivityAsync(int raceResultId, int activityId);
 }

@@ -125,13 +125,9 @@ else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
 
     private async Task LoadRaceResultsAsync()
     {
-        _raceResultsByActivityId = new Dictionary<int, IReadOnlyList<RaceResult>>();
-        foreach (var activity in _activities ?? Array.Empty<Activity>())
-        {
-            var results = await RaceResultRepository.GetForActivityAsync(activity.Id);
-            if (results.Count > 0)
-                _raceResultsByActivityId[activity.Id] = results;
-        }
+        var activityIds = (_activities ?? Array.Empty<Activity>()).Select(a => a.Id).ToList();
+        var lookup = await RaceResultRepository.GetForActivitiesAsync(_userId, activityIds);
+        _raceResultsByActivityId = new Dictionary<int, IReadOnlyList<RaceResult>>(lookup);
     }
 
     private async Task SyncAsync()
