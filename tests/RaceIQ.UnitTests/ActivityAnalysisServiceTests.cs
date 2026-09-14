@@ -85,6 +85,76 @@ public class ActivityAnalysisServiceTests
     }
 
     [Fact]
+    public void BuildPrompt_WithMultipleMatchedRaceResults_MergesFieldsAcrossThem()
+    {
+        var activity = new Activity
+        {
+            UserId = "user-1",
+            StravaActivityId = "1",
+            Name = "Crit Race",
+            StreamDataJson = "[]"
+        };
+        var zwiftPowerResult = new RaceResult
+        {
+            UserId = "user-1",
+            Provider = ConnectedAccountProvider.ZwiftPower,
+            ProviderResultId = "999",
+            EventName = "Crit Race",
+            EventDate = DateTime.UtcNow,
+            Category = "B",
+            Position = null,
+            FieldSize = null
+        };
+        var zwiftRacingResult = new RaceResult
+        {
+            UserId = "user-1",
+            Provider = ConnectedAccountProvider.ZwiftRacing,
+            ProviderResultId = "998",
+            EventName = "Crit Race",
+            EventDate = DateTime.UtcNow,
+            Category = null,
+            Position = 4,
+            FieldSize = null
+        };
+
+        var prompt = ActivityAnalysisService.BuildPrompt(
+            activity, new[] { zwiftPowerResult, zwiftRacingResult });
+
+        Assert.Contains("category B", prompt);
+        Assert.Contains("finished 4", prompt);
+    }
+
+    [Fact]
+    public void BuildPrompt_MatchedRaceResultAndIsRaceBothTrue_PrefersMatchedResultBranch()
+    {
+        var activity = new Activity
+        {
+            UserId = "user-1",
+            StravaActivityId = "1",
+            Name = "Crit Race",
+            StreamDataJson = "[]",
+            WorkoutType = 11
+        };
+        var raceResult = new RaceResult
+        {
+            UserId = "user-1",
+            Provider = ConnectedAccountProvider.ZwiftPower,
+            ProviderResultId = "999",
+            EventName = "Crit Race",
+            EventDate = DateTime.UtcNow,
+            Category = "B",
+            Position = 4,
+            FieldSize = 38
+        };
+
+        var prompt = ActivityAnalysisService.BuildPrompt(activity, new[] { raceResult });
+
+        Assert.Contains("category B race", prompt);
+        Assert.Contains("finished 4 of 38", prompt);
+        Assert.DoesNotContain("no result details", prompt);
+    }
+
+    [Fact]
     public void BuildPrompt_IsRaceButNoMatchedResult_StatesRaceWithoutDetails()
     {
         var activity = new Activity
