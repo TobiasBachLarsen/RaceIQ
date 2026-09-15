@@ -23,94 +23,60 @@ public class ZwiftPowerApiClient : IZwiftPowerApiClient
         var response = await _httpClient.SendAsync(request);
         response.EnsureSuccessStatusCode();
 
-        // ZwiftPower's cache3 JSON endpoints wrap their row array in an object under a
-        // "data" property - they do NOT return a bare JSON array. This was confirmed
-        // (Task 6) by reading the real source of two independent community tools that
-        // call this exact endpoint, since Tobias's own session cookie wasn't available
-        // to curl the live endpoint during this task:
-        //   - jessicah/ZwiftPower (C#): ProfileResultsAsync(int zwid) calls
-        //     "/cache3/profile/{zwid}_all.json" via a helper (ParseListAsync<Result>)
-        //     that deserializes into an internal `Data<T>` type holding `T[] data`,
-        //     then returns `result.data`.
-        //   - puckdoug/zpdatafetch (Python): ZPCyclistFetch fetches the identical URL
-        //     ("https://zwiftpower.com/cache3/profile/" + id + "_all.json"), discards
-        //     the parsed response unless it's a dict, and ZPCyclist.racelog raises
-        //     KeyError if a "data" key is absent - i.e. it also assumes an object
-        //     wrapper, not a bare array.
-        // Still provisional: neither source was cross-checked against a live curl to
-        // Tobias's own account, so treat this as our best evidence rather than
-        // ground truth until confirmed.
+        // The cache3 profile endpoint wraps its row array in an object under a "data"
+        // property (it does not return a bare array), so parse the envelope first.
         var envelope = await response.Content.ReadFromJsonAsync<ZwiftPowerResponseEnvelope>()
             ?? new ZwiftPowerResponseEnvelope(null);
         var raw = envelope.Data ?? new();
 
-        return raw.Select(r =>
-        {
-            var eventDate = DateTimeOffset.FromUnixTimeSeconds(r.EventDate).UtcDateTime;
+        return raw
+            // f_t marks the entry type ("TYPE_RACE", "TYPE_WORKOUT", "TYPE_RIDE"); only
+            // real races belong in the race-result list. A disqualified race is still a
+            // race (f_t stays TYPE_RACE, category becomes "DQ"), so filter on f_t alone.
+            .Where(r => r.RaceType is not null && r.RaceType.Contains("TYPE_RACE"))
+            .Select(r =>
+            {
+                var eventDate = DateTimeOffset.FromUnixTimeSeconds(r.EventDate).UtcDateTime;
 
-            // Defensive fallback (added after Task 6 review): three independent real
-            // sources disagree on this endpoint's actual field names (see the doc
-            // comment on ZwiftPowerResultPayload below), so `race_id`/`event_name`
-            // may simply not exist in the live JSON. If they don't, System.Text.Json
-            // silently defaults RaceId to 0 for every result - which would make every
-            // race share ProviderResultId "0" and collide on the
-            // (UserId, Provider, ProviderResultId) de-dup key from Task 3, silently
-            // overwriting one race's stored result with the next sync's. EventDate is
-            // the one field all three disagreeing sources agree exists and is
-            // genuinely distinct per race for a single rider, so it's the fallback:
-            // worst case (wrong field-name guess) results still land in separate,
-            // provisionally-labeled rows instead of overwriting each other.
-            var raceId = r.RaceId != 0
-                ? r.RaceId.ToString()
-                : eventDate.ToString("yyyyMMddHHmmss");
+                // zid is the per-event result id and is always present in practice;
+                // fall back to an EventDate-derived id only if it were ever missing, so
+                // results can never collide on the (UserId, Provider, ProviderResultId)
+                // de-dup key.
+                var raceId = string.IsNullOrEmpty(r.Zid)
+                    ? eventDate.ToString("yyyyMMddHHmmss")
+                    : r.Zid;
 
-            var eventName = string.IsNullOrEmpty(r.EventName)
-                ? $"ZwiftPower race {eventDate:d}"
-                : r.EventName;
+                // event_title occasionally has leading whitespace; trim it, and generate
+                // a readable placeholder if it were ever empty.
+                var eventName = string.IsNullOrWhiteSpace(r.EventTitle)
+                    ? $"ZwiftPower race {eventDate:d}"
+                    : r.EventTitle.Trim();
 
-            return new ZwiftPowerRaceResult(
-                raceId,
-                eventName,
-                eventDate,
-                r.Category,
-                r.Position,
-                r.Time.HasValue ? TimeSpan.FromSeconds(r.Time.Value) : null);
-        }).ToList();
+                return new ZwiftPowerRaceResult(
+                    raceId,
+                    eventName,
+                    eventDate,
+                    r.Category,
+                    r.Position,
+                    r.GunTime.HasValue ? TimeSpan.FromSeconds(r.GunTime.Value) : null);
+            }).ToList();
     }
 
     private record ZwiftPowerResponseEnvelope(
         [property: JsonPropertyName("data")] List<ZwiftPowerResultPayload>? Data);
 
-    // Field names below (race_id, event_name, event_date, category, position, time)
-    // are still the brief's original, unverified guess. Three independent real
-    // sources now disagree on what this endpoint's actual field names are:
-    //   - The brief's own cited source (zpdatafetch's zpraceresult.py) turned out to
-    //     model a different endpoint entirely - a single event's full participant
-    //     list, not this rider-profile endpoint.
-    //   - jessicah/ZwiftPower's C# `Result` record for this exact endpoint
-    //     (ProfileResultsAsync) has no race_id, event_name, or position field at
-    //     all - only zwid (the rider's own id, not per-race), zid (string, possibly
-    //     the per-race id), div/divw (numeric division, not a letter category),
-    //     event_date, time_gun, distance.
-    //   - zpdatafetch's zpracefinish.py (which does call this exact endpoint via
-    //     zpcyclistfetch.py) uses yet another set of names: no race_id, event_title
-    //     instead of event_name, pos instead of position.
-    // With three mutually-disagreeing guesses and no live data to settle it,
-    // GetRecentResultsAsync falls back to an EventDate-derived RaceId and a
-    // generated EventName placeholder whenever the parsed race_id/event_name comes
-    // back missing/zero/empty (see the fallback logic above), so a wrong
-    // field-name guess can never collapse multiple races onto the same
-    // ProviderResultId - it can only produce a provisionally-labeled row instead of
-    // a lost one. Position and Category are left nullable and un-fallback'd on
-    // purpose: a permanently-null value there is a real possibility (no source
-    // confirms either field exists on this endpoint), not something to guess
-    // around. Confirm all of this against one of Tobias's real ZwiftPower
-    // activities before trusting non-placeholder RaceId/EventName values.
+    // Field names confirmed against a real ZwiftPower account's
+    // /cache3/profile/{id}_all.json response: zid (per-event result id, string),
+    // event_title (race name), event_date (unix seconds), category (A-E/DQ letter),
+    // pos (overall finishing position), time_gun (finish time in seconds, a scalar -
+    // the sibling "time" field is a [seconds, flag] array, not used here), and f_t
+    // (entry type, used above to keep only races).
     private record ZwiftPowerResultPayload(
-        [property: JsonPropertyName("race_id")] long RaceId,
-        [property: JsonPropertyName("event_name")] string? EventName,
+        [property: JsonPropertyName("zid")] string? Zid,
+        [property: JsonPropertyName("event_title")] string? EventTitle,
         [property: JsonPropertyName("event_date")] long EventDate,
         [property: JsonPropertyName("category")] string? Category,
-        [property: JsonPropertyName("position")] int? Position,
-        [property: JsonPropertyName("time")] double? Time);
+        [property: JsonPropertyName("pos")] int? Position,
+        [property: JsonPropertyName("time_gun")] double? GunTime,
+        [property: JsonPropertyName("f_t")] string? RaceType);
 }

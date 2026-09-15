@@ -37,7 +37,7 @@ public class RaceResultFlowTests : IClassFixture<RaceIQApiFactory>
         // event_date 1788285600 = 2026-09-01T18:00:00Z, matching the Strava activity's
         // start_date above within RaceResultMatcher's 30-minute window.
         _factory.ZwiftPowerApiResponder = _ => FakeHttpMessageHandler.JsonResponse(HttpStatusCode.OK,
-            """{"data":[{"race_id":999,"event_name":"Club Crit","event_date":1788285600,"category":"B","position":4,"time":2700}]}""");
+            """{"data":[{"zid":"999","event_title":"Club Crit","event_date":1788285600,"category":"B","pos":4,"time_gun":2700,"f_t":"TYPE_RACE TYPE_RACE "}]}""");
         // ZwiftRacingApiClient (Task 9) makes two HTTP calls per sync: first it discovers
         // recent race ids from /public/riders/{id} (still the brief's original
         // recent_race_ids guess - unresolved by Task 9's research), then it fetches each
