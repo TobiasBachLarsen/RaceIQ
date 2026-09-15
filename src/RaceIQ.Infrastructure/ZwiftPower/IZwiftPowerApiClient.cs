@@ -11,4 +11,5 @@ public record ZwiftPowerRaceResult(
     DateTime EventDate,
     string? Category,
     int? Position,
-    TimeSpan? Duration);
+    TimeSpan? Duration,
+    double? RatingChange);

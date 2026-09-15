@@ -33,7 +33,7 @@ public class ZwiftPowerApiClientTests
         // whitespace. Personal fields (name, HR, power) are omitted - only what the
         // parser reads is kept.
         var handler = new FakeHandler(
-            """{"data":[{"zid":"5233969","event_title":" Crit Race","event_date":1756742400,"category":"B","pos":4,"time":[2705.5,0],"time_gun":2705.5,"f_t":"TYPE_RACE TYPE_RACE "}]}""");
+            """{"data":[{"zid":"5233969","event_title":" Crit Race","event_date":1756742400,"category":"B","pos":4,"time":[2705.5,0],"time_gun":2705.5,"f_t":"TYPE_RACE TYPE_RACE ","skill_gain":"28.29"}]}""");
         var client = new ZwiftPowerApiClient(new HttpClient(handler));
 
         var results = await client.GetRecentResultsAsync("session=abc123", "12345");
@@ -44,6 +44,7 @@ public class ZwiftPowerApiClientTests
         Assert.Equal("B", results[0].Category);
         Assert.Equal(4, results[0].Position);
         Assert.Equal(TimeSpan.FromSeconds(2705.5), results[0].Duration);
+        Assert.Equal(28.29, results[0].RatingChange);         // skill_gain sent as a string
         Assert.Contains("session=abc123", handler.LastRequest!.Headers.GetValues("Cookie"));
     }
 
@@ -56,10 +57,10 @@ public class ZwiftPowerApiClientTests
         var handler = new FakeHandler(
             """
             {"data":[
-              {"zid":"1","event_title":"Real Race","event_date":1756742400,"category":"C","pos":10,"time_gun":1800,"f_t":"TYPE_RACE TYPE_RACE "},
+              {"zid":"1","event_title":"Real Race","event_date":1756742400,"category":"C","pos":10,"time_gun":1800,"f_t":"TYPE_RACE TYPE_RACE ","skill_gain":"12.5"},
               {"zid":"2","event_title":"Workout Hour","event_date":1756828800,"category":"E","pos":42,"time_gun":3300,"f_t":"TYPE_WORKOUT TYPE_WORKOUT"},
               {"zid":"3","event_title":"Just A Ride","event_date":1756915200,"category":"E","pos":20,"time_gun":2000,"f_t":"TYPE_RIDE"},
-              {"zid":"4","event_title":"DQ Race","event_date":1757001600,"category":"DQ","pos":36,"time_gun":4315,"f_t":"TYPE_RACE TYPE_RACE "}
+              {"zid":"4","event_title":"DQ Race","event_date":1757001600,"category":"DQ","pos":36,"time_gun":4315,"f_t":"TYPE_RACE TYPE_RACE ","skill_gain":0}
             ]}
             """);
         var client = new ZwiftPowerApiClient(new HttpClient(handler));
@@ -67,6 +68,9 @@ public class ZwiftPowerApiClientTests
         var results = await client.GetRecentResultsAsync("session=abc123", "12345");
 
         Assert.Equal(new[] { "1", "4" }, results.Select(r => r.RaceId));
+        // skill_gain parses whether sent as a string ("12.5") or a bare number (0).
+        Assert.Equal(12.5, results[0].RatingChange);
+        Assert.Equal(0.0, results[1].RatingChange);
     }
 
     [Fact]

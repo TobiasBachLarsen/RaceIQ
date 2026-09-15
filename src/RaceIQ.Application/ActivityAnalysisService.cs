@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -64,6 +65,7 @@ public class ActivityAnalysisService : IActivityAnalysisService
             var category = raceResults.Select(r => r.Category).FirstOrDefault(c => c is not null);
             var position = raceResults.Select(r => r.Position).FirstOrDefault(p => p is not null);
             var fieldSize = raceResults.Select(r => r.FieldSize).FirstOrDefault(f => f is not null);
+            var ratingChange = raceResults.Select(r => r.RatingChange).FirstOrDefault(rc => rc is not null);
 
             var placement = position is { } pos && fieldSize is { } field
                 ? $"finished {pos} of {field}"
@@ -77,6 +79,11 @@ public class ActivityAnalysisService : IActivityAnalysisService
                 "so bursty, uneven power is often normal and correct there, not a mistake. Use the placement " +
                 "above as context: if the pacing pattern plausibly explains it, say so; otherwise don't force " +
                 "a connection that isn't there.");
+
+            if (ratingChange is { } rc)
+                sb.AppendLine(
+                    $"The rider's race ranking changed by {rc.ToString("+0.0;-0.0", CultureInfo.InvariantCulture)} " +
+                    "points from this result - context on how the race went, not a pacing signal on its own.");
         }
         else if (activity.IsRace)
         {
