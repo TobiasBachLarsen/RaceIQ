@@ -24,7 +24,7 @@ public class ZwiftPowerSyncTests : IClassFixture<RaceIQApiFactory>
         // Wrapped in a top-level "data" object, not a bare array - ZwiftPowerApiClient
         // (Task 6) expects the ZwiftPower cache3 envelope shape, not a bare array.
         _factory.ZwiftPowerApiResponder = _ => FakeHttpMessageHandler.JsonResponse(HttpStatusCode.OK,
-            """{"data":[{"race_id":999,"event_name":"Crit Race","event_date":1756742400,"category":"B","position":4,"time":2700}]}""");
+            """{"data":[{"zid":"999","event_title":"Crit Race","event_date":1756742400,"category":"B","pos":4,"time_gun":2700,"f_t":"TYPE_RACE TYPE_RACE "}]}""");
 
         using var scope = _factory.Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
