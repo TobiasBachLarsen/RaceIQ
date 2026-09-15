@@ -30,9 +30,7 @@ public class ZwiftRacingApiClientTests
                 return Json("""{"recent_race_ids":[777]}""");
 
             // Field names here (eventId, title, time, riderId, ratingDelta) are the real
-            // raw ZwiftRacing API keys confirmed during Task 9 research (see the doc
-            // comment on ZwiftRacingRaceDetailPayload), not the brief's original
-            // snake_case guess.
+            // raw ZwiftRacing API keys, matching ZwiftRacingRaceDetailPayload.
             return Json("""
                 {"eventId":777,"title":"Club Crit","time":1756742400,
                  "results":[

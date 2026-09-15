@@ -39,52 +39,21 @@ public class ZwiftRacingApiClient : IZwiftRacingApiClient
         return results;
     }
 
-    // VERIFY (Task 9): still an unresolved open question, researched directly rather than
-    // left as a guess. `/public/riders/{zwiftRiderId}` is a REAL, confirmed endpoint - not
-    // a guess anymore - but it does NOT return a rider's race history or a list of race
-    // ids. Confirmed by reading the actual source of puckdoug/zpdatafetch's zrdatafetch
-    // module (github.com/puckdoug/zpdatafetch, src/zrdatafetch/), which is the same
-    // community tool the base URL and /public/results/{raceId} endpoint were confirmed
-    // against in the original research:
-    //   - zrriderfetch.py's ZRRiderFetch hits exactly this path
-    //     (f'/public/riders/{zwift_id}') and parses the response with ZRRider.from_dict
-    //     (zrrider.py). Its `known_fields` are: name, gender, race, power, riderId,
-    //     zwiftId, handicaps, phenotype, seed, velo - i.e. a rider's rating/vELO profile
-    //     (current/max30/max90 rating, category, handicaps, phenotype scores, power
-    //     curve). There is no field anywhere in that shape for a list of race/event ids.
-    //   - docs/DATA_DICTIONARY.md's "Zwift Racing Data" section documents exactly three
-    //     ZR endpoints/shapes: Rider (rating profile, as above), Results (single race by
-    //     id - what GetRaceResultAsync below uses), and Team (roster). No fourth
-    //     "rider's races" or "race history" shape is documented for ZwiftRacing anywhere
-    //     in this library (Race History/Racelog fields DO exist in the same doc, but only
-    //     under the separate "Zwift Power Data" section for ZwiftPower's Cyclist object -
-    //     a different provider's endpoint, not this one).
-    //   - The repo's own README table of zrdata's supported data is explicit: "Rider
-    //     Ratings, Race Results, Team Rosters" - three things, not four. The `zrdata` CLI
-    //     itself only exposes `rider`, `result`, and `team` subcommands.
-    // So this task's brief's original guess (this same URL, assumed to return
-    // `recent_race_ids`) is now known to be wrong for what DiscoverRecentRaceIdsAsync
-    // needs - not "unverified", but actually falsified by real source. No alternative
-    // endpoint for "this rider's recent race ids" was found anywhere in zrdatafetch's
-    // source, its CLI, its README, or its data dictionary; a genuine, bounded search (not
-    // an unbounded one) turned up nothing better. Per this task's instructions, the guess
-    // below is kept exactly as the brief specified it (same path, same assumed
-    // `recent_race_ids` response shape) rather than invented further, since no better
-    // candidate exists to replace it with. In its current form this method will call a
-    // real endpoint that returns HTTP 200 with a rider rating profile, which has no
-    // `recent_race_ids` property - so ReadFromJsonAsync will simply fail to populate that
-    // property and this method will return an empty list, not throw. GetRecentResultsAsync
-    // will therefore return no results until Tobias gets ZwiftRacing API access (via their
-    // Discord) and finds the actual rider-race-history endpoint from ZwiftRacing's own
-    // docs/community, at which point this method's path and payload shape need to be
-    // replaced with the real ones.
+    // KNOWN LIMITATION: the public ZwiftRacing API has no endpoint that lists a rider's
+    // recent races. `/public/riders/{id}` is a real endpoint, but it returns a rider's
+    // rating/vELO profile (rating, category, phenotype, power curve) with no race or
+    // event ids. The documented public API exposes only three shapes - rider ratings,
+    // a single race result by id, and team rosters - none of which is a race history.
+    // Until the real rider-race-history endpoint is obtained from ZwiftRacing (their API
+    // access is gated behind their Discord), this method calls the rider endpoint, finds
+    // no recent_race_ids property, and returns an empty list, so GetRecentResultsAsync
+    // yields no results. When that endpoint is known, replace the path and payload below.
     private async Task<IReadOnlyList<string>> DiscoverRecentRaceIdsAsync(string apiKey, string zwiftRiderId)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, $"{BaseUrl}/public/riders/{Uri.EscapeDataString(zwiftRiderId)}");
-        // TryAddWithoutValidation rather than AuthenticationHeaderValue.Parse(apiKey):
-        // Parse throws FormatException on a pasted API key containing characters that
-        // aren't valid in an HTTP token, which would surface as an unhandled exception
-        // instead of a clean NeedsReconnect. This was the plan's own prescribed fallback.
+        // TryAddWithoutValidation rather than AuthenticationHeaderValue.Parse: Parse throws
+        // FormatException on a pasted key containing characters that aren't valid in an HTTP
+        // token, which would surface as an unhandled exception instead of a clean reconnect.
         request.Headers.TryAddWithoutValidation("Authorization", apiKey);
 
         var response = await _httpClient.SendAsync(request);
@@ -97,10 +66,6 @@ public class ZwiftRacingApiClient : IZwiftRacingApiClient
     private async Task<ZwiftRacingRaceDetailPayload> GetRaceResultAsync(string apiKey, string raceId)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, $"{BaseUrl}/public/results/{Uri.EscapeDataString(raceId)}");
-        // TryAddWithoutValidation rather than AuthenticationHeaderValue.Parse(apiKey):
-        // Parse throws FormatException on a pasted API key containing characters that
-        // aren't valid in an HTTP token, which would surface as an unhandled exception
-        // instead of a clean NeedsReconnect. This was the plan's own prescribed fallback.
         request.Headers.TryAddWithoutValidation("Authorization", apiKey);
 
         var response = await _httpClient.SendAsync(request);
@@ -113,21 +78,10 @@ public class ZwiftRacingApiClient : IZwiftRacingApiClient
     private record ZwiftRacingRiderPayload(
         [property: JsonPropertyName("recent_race_ids")] List<long>? RecentRaceIds);
 
-    // Field names below were corrected during Task 9 research from the brief's original
-    // snake_case guess (race_id, event_title, event_time, zwift_id, rating_delta, etc.)
-    // to the real raw JSON keys the ZwiftRacing API actually sends. Confirmed directly
-    // from puckdoug/zpdatafetch's zrdatafetch source and its docs/DATA_DICTIONARY.md
-    // ("Zwift Racing Data" > "Results" section), which documents the raw-API-field ->
-    // python-attribute mapping explicitly and matches the field names used to build the
-    // request/parse the response in zrresultfetch.py and zrraceresult.py:
-    //   race level:  eventId, title, time, routeId, distance, type, subType, results
-    //   rider level: riderId, position, positionInCategory, category, time, gap,
-    //                ratingBefore, rating, ratingDelta
-    // (routeId, distance, type, subType, positionInCategory, gap, ratingBefore, rating
-    // aren't needed by ZwiftRacingRaceResult and are left unmapped.) This came from the
-    // same source used to confirm the base URL and /public/results/{raceId} endpoint, but
-    // is still provisional pending live verification against a real ZwiftRacing account -
-    // confirm all of this against an actual API response once Tobias has API access.
+    // These are the raw JSON keys the ZwiftRacing results API sends (race level:
+    // eventId, title, time, results; rider level: riderId, position, category, time,
+    // ratingDelta). Still to be verified against a live account once API access is
+    // granted; fields not needed by ZwiftRacingRaceResult are left unmapped.
     private record ZwiftRacingRaceDetailPayload(
         [property: JsonPropertyName("eventId")] long RaceId,
         [property: JsonPropertyName("title")] string EventTitle,
