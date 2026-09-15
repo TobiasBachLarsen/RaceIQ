@@ -97,7 +97,8 @@ else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
     private ConnectedAccount? _zwiftPowerAccount;
     private ConnectedAccount? _zwiftRacingAccount;
     private IReadOnlyList<Activity>? _activities;
-    private Dictionary<int, IReadOnlyList<RaceResult>> _raceResultsByActivityId = new();
+    private IReadOnlyDictionary<int, IReadOnlyList<RaceResult>> _raceResultsByActivityId =
+        new Dictionary<int, IReadOnlyList<RaceResult>>();
     private bool _syncing;
     private string? _syncError;
     private string _userId = string.Empty;
@@ -145,8 +146,7 @@ else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
     private async Task LoadRaceResultsAsync()
     {
         var activityIds = (_activities ?? Array.Empty<Activity>()).Select(a => a.Id).ToList();
-        var lookup = await RaceResultRepository.GetForActivitiesAsync(_userId, activityIds);
-        _raceResultsByActivityId = new Dictionary<int, IReadOnlyList<RaceResult>>(lookup);
+        _raceResultsByActivityId = await RaceResultRepository.GetForActivitiesAsync(_userId, activityIds);
     }
 
     private async Task SyncAsync()

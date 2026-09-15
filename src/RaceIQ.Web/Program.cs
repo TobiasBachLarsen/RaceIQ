@@ -81,6 +81,12 @@ builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSe
 
 var app = builder.Build();
 
+if (string.IsNullOrWhiteSpace(anthropicApiKey))
+{
+    app.Logger.LogWarning(
+        "No Anthropic API key configured (Anthropic:ApiKey or ANTHROPIC_API_KEY); AI ride analysis will fail until one is set.");
+}
+
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<RaceIQDbContext>();

@@ -23,7 +23,9 @@ public class ClaudeClient : IClaudeClient
         var response = await _client.Beta.Messages.Create(new MessageCreateParams
         {
             Model = "claude-opus-5",
-            MaxTokens = 4096,
+            // Adaptive thinking tokens count toward MaxTokens; keep enough headroom that a
+            // full Danish coaching write-up plus thinking doesn't trip the truncation guard.
+            MaxTokens = 16000,
             Thinking = new BetaThinkingConfigAdaptive(),
             Betas = ["server-side-fallback-2026-06-01"],
             Fallbacks = new List<BetaFallbackParam> { new(NonBeta.Model.ClaudeOpus4_8) },

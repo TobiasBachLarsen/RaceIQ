@@ -18,7 +18,10 @@
                         {
                             var position = raceResults.Select(r => r.Position).FirstOrDefault(p => p is not null);
                             var category = raceResults.Select(r => r.Category).FirstOrDefault(c => c is not null);
-                            @($"P{position?.ToString() ?? "-"}" + (category is { } cat ? $" · Cat {cat}" : ""))
+                            var parts = new List<string>();
+                            if (position is { } pos) parts.Add($"P{pos}");
+                            if (category is { } cat) parts.Add($"Cat {cat}");
+                            @(parts.Count > 0 ? string.Join(" · ", parts) : "—")
                         }
                     </td>
                 </tr>
