@@ -1,14 +1,20 @@
+using System.Security.Cryptography;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using RaceIQ.Domain;
 
 namespace RaceIQ.Infrastructure;
 
 public class RaceIQDbContext : IdentityDbContext<ApplicationUser>
 {
-    public RaceIQDbContext(DbContextOptions<RaceIQDbContext> options)
+    private readonly IDataProtector _credentialProtector;
+
+    public RaceIQDbContext(DbContextOptions<RaceIQDbContext> options, IDataProtectionProvider dataProtection)
         : base(options)
     {
+        _credentialProtector = dataProtection.CreateProtector("RaceIQ.ConnectedAccount.Credentials");
     }
 
     public DbSet<Activity> Activities => Set<Activity>();
@@ -64,5 +70,36 @@ public class RaceIQDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<ConnectedAccount>()
             .HasIndex(a => new { a.UserId, a.Provider })
             .IsUnique();
+
+        // Encrypt the provider secrets at rest: the Strava access/refresh tokens, the
+        // ZwiftPower session cookie, and the ZwiftRacing API key all live in these two
+        // columns. ExternalAccountId (the public Zwift rider id) is not a secret and stays
+        // in clear text. The column type is unchanged (text), so this needs no migration.
+        var credentialConverter = new ValueConverter<string, string>(
+            plaintext => _credentialProtector.Protect(plaintext),
+            stored => Unprotect(stored));
+
+        builder.Entity<ConnectedAccount>()
+            .Property(a => a.AccessToken)
+            .HasConversion(credentialConverter);
+
+        builder.Entity<ConnectedAccount>()
+            .Property(a => a.RefreshToken)
+            .HasConversion(credentialConverter);
+    }
+
+    // Tolerates rows written before encryption was enabled (or with a since-rotated key):
+    // an undecryptable value is returned as-is, so a stale credential surfaces as a normal
+    // auth failure that flips the account to NeedsReconnect rather than crashing every read.
+    private string Unprotect(string stored)
+    {
+        try
+        {
+            return _credentialProtector.Unprotect(stored);
+        }
+        catch (CryptographicException)
+        {
+            return stored;
+        }
     }
 }
