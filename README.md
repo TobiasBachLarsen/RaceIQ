@@ -38,6 +38,17 @@ dotnet test RaceIQ.sln
   callback and a full sync-then-analyze flow through `WebApplicationFactory`, against a
   real (test) PostgreSQL database with Strava and Claude's HTTP responses faked.
 
+## Security
+
+Provider credentials — the Strava access/refresh tokens, the ZwiftPower session cookie,
+and the ZwiftRacing API key — are encrypted at rest. The `ConnectedAccount.AccessToken`
+and `RefreshToken` columns run through an EF Core value converter backed by ASP.NET
+Core Data Protection (`IDataProtector`), so the database only ever stores ciphertext; the
+public Zwift rider id is not a secret and stays in clear text. Data Protection keys are
+persisted by the host's default key ring, so in a real deployment they must live somewhere
+stable and backed up — if the keys are lost a stored credential can no longer be decrypted
+and the account simply falls back to a reconnect prompt.
+
 ## Roadmap
 
 Level 2 — tactical/draft analysis from live Zwift race telemetry — is a deliberately
