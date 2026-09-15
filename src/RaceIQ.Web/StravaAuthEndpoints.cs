@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.DataProtection;
 using RaceIQ.Application;
@@ -16,8 +15,7 @@ public static class StravaAuthEndpoints
     {
         app.MapGet("/strava/connect", (HttpContext context, IStravaOAuthService oauth, IDataProtectionProvider dataProtection) =>
         {
-            var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
-                ?? throw new InvalidOperationException("Strava connect requires an authenticated user.");
+            var userId = context.GetRequiredUserId("Strava connect");
 
             var protector = dataProtection.CreateProtector(ProtectorPurpose).ToTimeLimitedDataProtector();
             var state = protector.Protect(userId, StateLifetime);

@@ -41,20 +41,17 @@ builder.Services.AddScoped<IConnectedAccountRepository, EfConnectedAccountReposi
 
 builder.Services.AddSingleton<StravaRequestThrottle>();
 builder.Services.AddHttpClient<IStravaApiClient, StravaApiClient>();
-builder.Services.AddScoped<StravaSyncService>();
-builder.Services.AddScoped<IProviderSyncService>(sp => sp.GetRequiredService<StravaSyncService>());
+builder.Services.AddProviderSync<StravaSyncService>();
 builder.Services.AddScoped<IActivityRepository, EfActivityRepository>();
 
 builder.Services.AddHttpClient<IZwiftPowerApiClient, ZwiftPowerApiClient>();
-builder.Services.AddScoped<ZwiftPowerSyncService>();
-builder.Services.AddScoped<IProviderSyncService>(sp => sp.GetRequiredService<ZwiftPowerSyncService>());
+builder.Services.AddProviderSync<ZwiftPowerSyncService>();
 builder.Services.AddScoped<IRaceResultRepository, EfRaceResultRepository>();
 builder.Services.AddScoped<IRaceResultMatcher, RaceResultMatcher>();
 builder.Services.AddScoped<RaceResultImporter>();
 
 builder.Services.AddHttpClient<IZwiftRacingApiClient, ZwiftRacingApiClient>();
-builder.Services.AddScoped<ZwiftRacingSyncService>();
-builder.Services.AddScoped<IProviderSyncService>(sp => sp.GetRequiredService<ZwiftRacingSyncService>());
+builder.Services.AddProviderSync<ZwiftRacingSyncService>();
 
 builder.Services.AddScoped<SyncCoordinator>();
 
@@ -117,8 +114,7 @@ app.MapRazorComponents<App>()
 app.MapAdditionalIdentityEndpoints();
 
 app.MapStravaAuthEndpoints();
-app.MapZwiftPowerAuthEndpoints();
-app.MapZwiftRacingAuthEndpoints();
+app.MapZwiftAuthEndpoints();
 
 app.Run();
 
