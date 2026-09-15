@@ -32,6 +32,7 @@ public class ZwiftPowerSyncService : ResultSyncServiceBase<ZwiftPowerRaceResult>
         EventDate = result.EventDate,
         Category = result.Category,
         Position = result.Position,
-        Duration = result.Duration
+        Duration = result.Duration,
+        RatingChange = result.RatingChange
     };
 }

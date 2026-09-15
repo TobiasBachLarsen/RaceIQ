@@ -58,7 +58,8 @@ public class ZwiftPowerApiClient : IZwiftPowerApiClient
                     eventDate,
                     r.Category,
                     r.Position,
-                    r.GunTime.HasValue ? TimeSpan.FromSeconds(r.GunTime.Value) : null);
+                    r.GunTime.HasValue ? TimeSpan.FromSeconds(r.GunTime.Value) : null,
+                    r.SkillGain);
             }).ToList();
     }
 
@@ -69,8 +70,9 @@ public class ZwiftPowerApiClient : IZwiftPowerApiClient
     // /cache3/profile/{id}_all.json response: zid (per-event result id, string),
     // event_title (race name), event_date (unix seconds), category (A-E/DQ letter),
     // pos (overall finishing position), time_gun (finish time in seconds, a scalar -
-    // the sibling "time" field is a [seconds, flag] array, not used here), and f_t
-    // (entry type, used above to keep only races).
+    // the sibling "time" field is a [seconds, flag] array, not used here), f_t (entry
+    // type, used above to keep only races), and skill_gain (ZwiftPower ranking points
+    // gained/lost in the race - sometimes a string like "28.29", sometimes a bare 0).
     private record ZwiftPowerResultPayload(
         [property: JsonPropertyName("zid")] string? Zid,
         [property: JsonPropertyName("event_title")] string? EventTitle,
@@ -78,5 +80,7 @@ public class ZwiftPowerApiClient : IZwiftPowerApiClient
         [property: JsonPropertyName("category")] string? Category,
         [property: JsonPropertyName("pos")] int? Position,
         [property: JsonPropertyName("time_gun")] double? GunTime,
-        [property: JsonPropertyName("f_t")] string? RaceType);
+        [property: JsonPropertyName("f_t")] string? RaceType,
+        [property: JsonPropertyName("skill_gain")]
+        [property: JsonConverter(typeof(Json.FlexibleDoubleConverter))] double? SkillGain);
 }
