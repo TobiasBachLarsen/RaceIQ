@@ -9,6 +9,9 @@ public interface IRaceResultRepository
     // duplicate for the same result.
     Task<RaceResult> UpsertAsync(RaceResult result);
 
+    // Every RaceResult for the user, matched or not - used for overview totals.
+    Task<IReadOnlyList<RaceResult>> GetAllForUserAsync(string userId);
+
     // Results with no ActivityId yet — candidates for (re-)matching on the next sync.
     Task<IReadOnlyList<RaceResult>> GetUnmatchedForUserAsync(string userId);
 

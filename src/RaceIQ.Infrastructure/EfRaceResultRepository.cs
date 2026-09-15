@@ -39,6 +39,13 @@ public class EfRaceResultRepository : IRaceResultRepository
         return existing;
     }
 
+    public async Task<IReadOnlyList<RaceResult>> GetAllForUserAsync(string userId)
+    {
+        return await _context.RaceResults
+            .Where(r => r.UserId == userId)
+            .ToListAsync();
+    }
+
     public async Task<IReadOnlyList<RaceResult>> GetUnmatchedForUserAsync(string userId)
     {
         return await _context.RaceResults

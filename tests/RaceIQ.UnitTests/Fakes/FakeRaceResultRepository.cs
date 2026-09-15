@@ -32,6 +32,10 @@ public class FakeRaceResultRepository : IRaceResultRepository
         return Task.FromResult(existing);
     }
 
+    public Task<IReadOnlyList<RaceResult>> GetAllForUserAsync(string userId) =>
+        Task.FromResult<IReadOnlyList<RaceResult>>(
+            _results.Where(r => r.UserId == userId).ToList());
+
     public Task<IReadOnlyList<RaceResult>> GetUnmatchedForUserAsync(string userId) =>
         Task.FromResult<IReadOnlyList<RaceResult>>(
             _results.Where(r => r.UserId == userId && r.ActivityId == null).ToList());

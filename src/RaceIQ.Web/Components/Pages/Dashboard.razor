@@ -23,6 +23,11 @@
     }
 </div>
 
+@if (_activities is { Count: > 0 } && _stats is not null)
+{
+    <OverviewPanel Stats="_stats" />
+}
+
 @if (_connectedAccount is null)
 {
     <div class="card empty-state">
@@ -99,6 +104,7 @@ else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
     private IReadOnlyList<Activity>? _activities;
     private IReadOnlyDictionary<int, IReadOnlyList<RaceResult>> _raceResultsByActivityId =
         new Dictionary<int, IReadOnlyList<RaceResult>>();
+    private OverviewStats? _stats;
     private bool _syncing;
     private string? _syncError;
     private string _userId = string.Empty;
@@ -141,6 +147,9 @@ else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
     {
         _activities = await ActivityRepository.GetAllForUserAsync(_userId);
         await LoadRaceResultsAsync();
+
+        var allRaceResults = await RaceResultRepository.GetAllForUserAsync(_userId);
+        _stats = OverviewStatsBuilder.Build(_activities, allRaceResults, DateTime.UtcNow);
     }
 
     private async Task LoadRaceResultsAsync()

@@ -1,0 +1,40 @@
+@using RaceIQ.Application
+
+<div class="overview">
+    <section class="overview-group">
+        <h2 class="overview-title">I alt</h2>
+        <div class="overview-tiles">
+            <div class="tile"><span class="tile-value">@Stats.RideCount</span><span class="tile-label">Ture</span></div>
+            <div class="tile"><span class="tile-value">@Stats.TotalDistanceKm.ToString("F0") km</span><span class="tile-label">Distance</span></div>
+            <div class="tile"><span class="tile-value">@Hours(Stats.TotalDuration)</span><span class="tile-label">Tid</span></div>
+            <div class="tile"><span class="tile-value">@Stats.TotalElevationM.ToString("F0") m</span><span class="tile-label">Højdemeter</span></div>
+            <div class="tile"><span class="tile-value">@Stats.RaceCount</span><span class="tile-label">Løb</span></div>
+            <div class="tile"><span class="tile-value">@(Stats.BestPosition is { } p ? $"Nr. {p}" : "–")</span><span class="tile-label">Bedste placering</span></div>
+            <div class="tile"><span class="tile-value">@Rating(Stats.TotalRatingChange)</span><span class="tile-label">Rating i alt</span></div>
+        </div>
+    </section>
+
+    <section class="overview-group">
+        <h2 class="overview-title">Seneste 30 dage</h2>
+        <div class="overview-tiles">
+            <div class="tile"><span class="tile-value">@Stats.RecentRideCount</span><span class="tile-label">Ture</span></div>
+            <div class="tile"><span class="tile-value">@Stats.RecentDistanceKm.ToString("F0") km</span><span class="tile-label">Distance</span></div>
+            <div class="tile"><span class="tile-value">@Hours(Stats.RecentDuration)</span><span class="tile-label">Tid</span></div>
+            <div class="tile"><span class="tile-value">@(Stats.RecentAvgPower is { } w ? $"{w:F0} W" : "–")</span><span class="tile-label">Snit effekt</span></div>
+        </div>
+    </section>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public OverviewStats Stats { get; set; } = default!;
+
+    private static string Hours(TimeSpan span)
+    {
+        var hours = span.TotalHours;
+        return hours >= 10 ? $"{hours:F0} t" : $"{hours:F1} t";
+    }
+
+    private static string Rating(double? change) =>
+        change is { } c ? c.ToString("+0.0;-0.0") : "–";
+}
