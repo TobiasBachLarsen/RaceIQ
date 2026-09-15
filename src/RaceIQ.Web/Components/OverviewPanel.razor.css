@@ -1,42 +1,57 @@
 .overview {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
     margin-bottom: 2rem;
 }
 
-.overview-title {
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: #64748b;
-    margin: 0 0 0.6rem;
+.overview-section + .overview-section {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
 }
 
-.overview-tiles {
+.overview-caption {
+    margin: 0 0 1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.stat-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 1.5rem 1.25rem;
 }
 
-.tile {
+.stat {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
-    padding: 0.9rem 1rem;
-    background: #0b1220;
-    border: 1px solid #1e293b;
-    border-radius: 10px;
+    gap: 0.3rem;
+    min-width: 0;
 }
 
-.tile-value {
-    font-size: 1.35rem;
+.stat-num {
+    font-size: 1.85rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+
+.overview-section--recent .stat-num {
+    font-size: 1.4rem;
+}
+
+.stat-unit {
+    margin-left: 0.2rem;
+    font-size: 0.8em;
     font-weight: 600;
-    color: #e2e8f0;
-    line-height: 1.1;
+    color: var(--text-muted);
 }
 
-.tile-label {
-    font-size: 0.75rem;
-    color: #94a3b8;
+.stat-num--up { color: var(--success); }
+.stat-num--down { color: var(--danger); }
+
+.stat-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
 }

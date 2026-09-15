@@ -1,26 +1,59 @@
 @using RaceIQ.Application
 
-<div class="overview">
-    <section class="overview-group">
-        <h2 class="overview-title">I alt</h2>
-        <div class="overview-tiles">
-            <div class="tile"><span class="tile-value">@Stats.RideCount</span><span class="tile-label">Ture</span></div>
-            <div class="tile"><span class="tile-value">@Stats.TotalDistanceKm.ToString("F0") km</span><span class="tile-label">Distance</span></div>
-            <div class="tile"><span class="tile-value">@Hours(Stats.TotalDuration)</span><span class="tile-label">Tid</span></div>
-            <div class="tile"><span class="tile-value">@Stats.TotalElevationM.ToString("F0") m</span><span class="tile-label">Højdemeter</span></div>
-            <div class="tile"><span class="tile-value">@Stats.RaceCount</span><span class="tile-label">Løb</span></div>
-            <div class="tile"><span class="tile-value">@(Stats.BestPosition is { } p ? $"Nr. {p}" : "–")</span><span class="tile-label">Bedste placering</span></div>
-            <div class="tile"><span class="tile-value">@Rating(Stats.TotalRatingChange)</span><span class="tile-label">Rating i alt</span></div>
+<div class="overview card">
+    <section class="overview-section">
+        <p class="overview-caption">I alt</p>
+        <div class="stat-grid">
+            <div class="stat">
+                <span class="stat-num">@Stats.RideCount</span>
+                <span class="stat-label">Ture</span>
+            </div>
+            <div class="stat">
+                <span class="stat-num">@Stats.TotalDistanceKm.ToString("N0")<span class="stat-unit">km</span></span>
+                <span class="stat-label">Distance</span>
+            </div>
+            <div class="stat">
+                <span class="stat-num">@Hours(Stats.TotalDuration)<span class="stat-unit">t</span></span>
+                <span class="stat-label">Tid på cyklen</span>
+            </div>
+            <div class="stat">
+                <span class="stat-num">@Stats.TotalElevationM.ToString("N0")<span class="stat-unit">m</span></span>
+                <span class="stat-label">Højdemeter</span>
+            </div>
+            <div class="stat">
+                <span class="stat-num">@Stats.RaceCount</span>
+                <span class="stat-label">Løb</span>
+            </div>
+            <div class="stat">
+                <span class="stat-num">@(Stats.BestPosition is { } p ? $"{p}." : "–")</span>
+                <span class="stat-label">Bedste placering</span>
+            </div>
+            <div class="stat">
+                <span class="stat-num @RatingClass(Stats.TotalRatingChange)">@Rating(Stats.TotalRatingChange)</span>
+                <span class="stat-label">Rating i alt</span>
+            </div>
         </div>
     </section>
 
-    <section class="overview-group">
-        <h2 class="overview-title">Seneste 30 dage</h2>
-        <div class="overview-tiles">
-            <div class="tile"><span class="tile-value">@Stats.RecentRideCount</span><span class="tile-label">Ture</span></div>
-            <div class="tile"><span class="tile-value">@Stats.RecentDistanceKm.ToString("F0") km</span><span class="tile-label">Distance</span></div>
-            <div class="tile"><span class="tile-value">@Hours(Stats.RecentDuration)</span><span class="tile-label">Tid</span></div>
-            <div class="tile"><span class="tile-value">@(Stats.RecentAvgPower is { } w ? $"{w:F0} W" : "–")</span><span class="tile-label">Snit effekt</span></div>
+    <section class="overview-section overview-section--recent">
+        <p class="overview-caption">Seneste 30 dage</p>
+        <div class="stat-grid">
+            <div class="stat">
+                <span class="stat-num">@Stats.RecentRideCount</span>
+                <span class="stat-label">Ture</span>
+            </div>
+            <div class="stat">
+                <span class="stat-num">@Stats.RecentDistanceKm.ToString("N0")<span class="stat-unit">km</span></span>
+                <span class="stat-label">Distance</span>
+            </div>
+            <div class="stat">
+                <span class="stat-num">@Hours(Stats.RecentDuration)<span class="stat-unit">t</span></span>
+                <span class="stat-label">Tid</span>
+            </div>
+            <div class="stat">
+                <span class="stat-num">@(Stats.RecentAvgPower is { } w ? w.ToString("N0") : "–")<span class="stat-unit">@(Stats.RecentAvgPower is not null ? "W" : "")</span></span>
+                <span class="stat-label">Snit effekt</span>
+            </div>
         </div>
     </section>
 </div>
@@ -32,9 +65,12 @@
     private static string Hours(TimeSpan span)
     {
         var hours = span.TotalHours;
-        return hours >= 10 ? $"{hours:F0} t" : $"{hours:F1} t";
+        return hours >= 10 ? hours.ToString("N0") : hours.ToString("N1");
     }
 
     private static string Rating(double? change) =>
         change is { } c ? c.ToString("+0.0;-0.0") : "–";
+
+    private static string RatingClass(double? change) =>
+        change is not { } c ? "" : c >= 0 ? "stat-num--up" : "stat-num--down";
 }
