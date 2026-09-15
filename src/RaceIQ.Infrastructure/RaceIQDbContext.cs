@@ -75,17 +75,21 @@ public class RaceIQDbContext : IdentityDbContext<ApplicationUser>
         // ZwiftPower session cookie, and the ZwiftRacing API key all live in these two
         // columns. ExternalAccountId (the public Zwift rider id) is not a secret and stays
         // in clear text. The column type is unchanged (text), so this needs no migration.
-        var credentialConverter = new ValueConverter<string, string>(
+        var requiredConverter = new ValueConverter<string, string>(
             plaintext => _credentialProtector.Protect(plaintext),
             stored => Unprotect(stored));
 
+        var optionalConverter = new ValueConverter<string?, string?>(
+            plaintext => plaintext == null ? null : _credentialProtector.Protect(plaintext),
+            stored => stored == null ? null : Unprotect(stored));
+
         builder.Entity<ConnectedAccount>()
             .Property(a => a.AccessToken)
-            .HasConversion(credentialConverter);
+            .HasConversion(requiredConverter);
 
         builder.Entity<ConnectedAccount>()
             .Property(a => a.RefreshToken)
-            .HasConversion(credentialConverter);
+            .HasConversion(optionalConverter);
     }
 
     // Tolerates rows written before encryption was enabled (or with a since-rotated key):

@@ -1,0 +1,42 @@
+.overview {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+}
+
+.overview-title {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #64748b;
+    margin: 0 0 0.6rem;
+}
+
+.overview-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 0.75rem;
+}
+
+.tile {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.9rem 1rem;
+    background: #0b1220;
+    border: 1px solid #1e293b;
+    border-radius: 10px;
+}
+
+.tile-value {
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: #e2e8f0;
+    line-height: 1.1;
+}
+
+.tile-label {
+    font-size: 0.75rem;
+    color: #94a3b8;
+}
