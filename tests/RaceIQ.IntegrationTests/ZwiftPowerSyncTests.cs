@@ -21,8 +21,8 @@ public class ZwiftPowerSyncTests : IClassFixture<RaceIQApiFactory>
     [Fact]
     public async Task SyncAsync_MatchesResultToExistingActivity()
     {
-        // Wrapped in a top-level "data" object, not a bare array - ZwiftPowerApiClient
-        // (Task 6) expects the ZwiftPower cache3 envelope shape, not a bare array.
+        // Wrapped in a top-level "data" object - ZwiftPowerApiClient expects the cache3
+        // envelope shape, not a bare array.
         _factory.ZwiftPowerApiResponder = _ => FakeHttpMessageHandler.JsonResponse(HttpStatusCode.OK,
             """{"data":[{"zid":"999","event_title":"Crit Race","event_date":1756742400,"category":"B","pos":4,"time_gun":2700,"f_t":"TYPE_RACE TYPE_RACE "}]}""");
 

@@ -32,17 +32,16 @@ public class RaceResultFlowTests : IClassFixture<RaceIQApiFactory>
             return FakeHttpMessageHandler.JsonResponse(HttpStatusCode.OK,
                 """[{"id":42,"name":"Club Crit","start_date":"2026-09-01T18:00:02Z","distance":30000,"moving_time":2700,"total_elevation_gain":200,"average_watts":210,"weighted_average_watts":220,"average_heartrate":150,"average_cadence":90,"workout_type":11}]""");
         };
-        // Wrapped in a top-level "data" object, not a bare array - ZwiftPowerApiClient
-        // (Task 6) expects the ZwiftPower cache3 envelope shape, not a bare array.
-        // event_date 1788285600 = 2026-09-01T18:00:00Z, matching the Strava activity's
-        // start_date above within RaceResultMatcher's 30-minute window.
+        // Wrapped in a top-level "data" object - ZwiftPowerApiClient expects the cache3
+        // envelope shape, not a bare array. event_date 1788285600 = 2026-09-01T18:00:00Z,
+        // matching the Strava activity's start_date above within RaceResultMatcher's
+        // 30-minute window.
         _factory.ZwiftPowerApiResponder = _ => FakeHttpMessageHandler.JsonResponse(HttpStatusCode.OK,
             """{"data":[{"zid":"999","event_title":"Club Crit","event_date":1788285600,"category":"B","pos":4,"time_gun":2700,"f_t":"TYPE_RACE TYPE_RACE "}]}""");
-        // ZwiftRacingApiClient (Task 9) makes two HTTP calls per sync: first it discovers
-        // recent race ids from /public/riders/{id} (still the brief's original
-        // recent_race_ids guess - unresolved by Task 9's research), then it fetches each
-        // race's detail from /public/results/{raceId} using the real camelCase field
-        // names (eventId, title, time, riderId, ratingDelta) confirmed during Task 9.
+        // ZwiftRacingApiClient makes two HTTP calls per sync: first it discovers recent
+        // race ids from /public/riders/{id}, then it fetches each race's detail from
+        // /public/results/{raceId} using the real camelCase field names (eventId, title,
+        // time, riderId, ratingDelta).
         _factory.ZwiftRacingApiResponder = req =>
         {
             if (req.RequestUri!.AbsolutePath.Contains("/riders/"))

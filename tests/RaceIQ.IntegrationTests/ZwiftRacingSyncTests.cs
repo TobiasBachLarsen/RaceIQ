@@ -21,11 +21,10 @@ public class ZwiftRacingSyncTests : IClassFixture<RaceIQApiFactory>
     [Fact]
     public async Task SyncAsync_MatchesResultToExistingActivity()
     {
-        // ZwiftRacingApiClient (Task 9) makes two HTTP calls per sync: first it
-        // discovers recent race ids from /public/riders/{id}, then it fetches each
-        // race's detail from /public/results/{raceId}. The fake responder below
-        // dispatches on the request path to serve both shapes, same as
-        // ZwiftRacingApiClientTests (unit tests, Task 9) does.
+        // ZwiftRacingApiClient makes two HTTP calls per sync: first it discovers recent
+        // race ids from /public/riders/{id}, then it fetches each race's detail from
+        // /public/results/{raceId}. The fake responder below dispatches on the request
+        // path to serve both shapes.
         _factory.ZwiftRacingApiResponder = req =>
         {
             if (req.RequestUri!.AbsolutePath.Contains("/riders/"))
