@@ -29,13 +29,15 @@ public class RaceResultImporter
     public async Task ImportAsync(string userId, IReadOnlyList<RaceResult> incoming)
     {
         var activities = await _activityRepository.GetAllForUserAsync(userId);
-        var matchedResultIds = new HashSet<int>();
+        // Every result upserted in this pass, matched or not, so the retry pass below can
+        // skip rows it already handled here.
+        var processedResultIds = new HashSet<int>();
         var matchedCount = 0;
 
         foreach (var result in incoming)
         {
             var stored = await _raceResultRepository.UpsertAsync(result);
-            matchedResultIds.Add(stored.Id);
+            processedResultIds.Add(stored.Id);
 
             if (stored.ActivityId is null)
             {
@@ -50,11 +52,11 @@ public class RaceResultImporter
 
         // Retry any still-unmatched results from earlier syncs against this sync's freshly
         // loaded activities - e.g. a race result that arrived before its matching Strava
-        // activity had synced. Skip rows we already just upserted above in this same pass.
+        // activity had synced. Skip rows we already processed above in this same pass.
         var unmatched = await _raceResultRepository.GetUnmatchedForUserAsync(userId);
         foreach (var result in unmatched)
         {
-            if (matchedResultIds.Contains(result.Id))
+            if (processedResultIds.Contains(result.Id))
                 continue;
 
             var match = _matcher.FindMatch(result, activities);

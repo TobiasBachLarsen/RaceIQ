@@ -1,5 +1,13 @@
 namespace RaceIQ.Domain;
 
+// Strava's workout_type integers for Ride activities (Run's values + 10).
+public enum RideWorkoutType
+{
+    Default = 10,
+    Race = 11,
+    Workout = 12,
+}
+
 public class Activity
 {
     public int Id { get; set; }
@@ -21,9 +29,9 @@ public class Activity
     // workouts from SummaryActivity object", ActivityFix's reply) and corroborating
     // community sources, Ride follows the same "+10 offset from Run" pattern Strava
     // uses elsewhere (Run: 0 = Default, 1 = Race, 2 = Long Run, 3 = Workout):
-    // Ride: 10 = Default, 11 = Race, 12 = Workout. Not yet verified against a real
-    // Strava activity; null for activities synced before this field was added.
+    // Ride: 10 = Default, 11 = Race, 12 = Workout (see RideWorkoutType). Not yet verified
+    // against a real Strava activity; null for activities synced before this field existed.
     public int? WorkoutType { get; set; }
 
-    public bool IsRace => WorkoutType == 11;
+    public bool IsRace => WorkoutType == (int)RideWorkoutType.Race;
 }
