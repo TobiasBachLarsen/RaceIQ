@@ -36,7 +36,7 @@ public class StravaSyncService : IProviderSyncService
             ?? throw new ConnectedAccountNotFoundException(userId);
 
         if (account.Status == ConnectedAccountStatus.NeedsReconnect)
-            throw new StravaReconnectRequiredException(userId);
+            return;
 
         var accessToken = await EnsureFreshTokenAsync(account);
 
