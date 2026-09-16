@@ -24,12 +24,13 @@ public class WhoopApiClientTests
         }
     }
 
-    // Shape mirrors WHOOP's documented v2 recovery record. spo2/skin-temp are included to
-    // prove unused fields are tolerated.
+    // Shape mirrors a real v2 recovery response: recovery_score and resting_heart_rate
+    // arrive as decimals (72.0) even though the docs say integer. spo2/skin-temp are
+    // included to prove unused fields are tolerated.
     private const string PageOne =
         """
         {"records":[
-          {"cycle_id":93845,"sleep_id":"e3c3f1a2-0000-4000-8000-000000000001","user_id":10129,"created_at":"2026-09-10T05:12:00.123Z","updated_at":"2026-09-10T05:12:00.123Z","score_state":"SCORED","score":{"user_calibrating":false,"recovery_score":72,"resting_heart_rate":48,"hrv_rmssd_milli":61.4,"spo2_percentage":96.1,"skin_temp_celsius":33.2}},
+          {"cycle_id":93845,"sleep_id":"e3c3f1a2-0000-4000-8000-000000000001","user_id":10129,"created_at":"2026-09-10T05:12:00.123Z","updated_at":"2026-09-10T05:12:00.123Z","score_state":"SCORED","score":{"user_calibrating":false,"recovery_score":72.0,"resting_heart_rate":48.0,"hrv_rmssd_milli":61.4,"spo2_percentage":96.1,"skin_temp_celsius":33.2}},
           {"cycle_id":93846,"sleep_id":"e3c3f1a2-0000-4000-8000-000000000002","user_id":10129,"created_at":"2026-09-11T05:40:00Z","updated_at":"2026-09-11T05:40:00Z","score_state":"PENDING_SCORE","score":null},
           {"cycle_id":93847,"sleep_id":"e3c3f1a2-0000-4000-8000-000000000003","user_id":10129,"created_at":"2026-09-12T06:01:00Z","updated_at":"2026-09-12T06:01:00Z","score_state":"UNSCORABLE"}
         ],"next_token":"page-2"}
@@ -38,7 +39,7 @@ public class WhoopApiClientTests
     private const string PageTwo =
         """
         {"records":[
-          {"cycle_id":93848,"sleep_id":"e3c3f1a2-0000-4000-8000-000000000004","user_id":10129,"created_at":"2026-09-13T05:55:00Z","updated_at":"2026-09-13T05:55:00Z","score_state":"SCORED","score":{"user_calibrating":false,"recovery_score":31,"resting_heart_rate":55,"hrv_rmssd_milli":38.0,"spo2_percentage":95.0,"skin_temp_celsius":33.9}}
+          {"cycle_id":93848,"sleep_id":"e3c3f1a2-0000-4000-8000-000000000004","user_id":10129,"created_at":"2026-09-13T05:55:00Z","updated_at":"2026-09-13T05:55:00Z","score_state":"SCORED","score":{"user_calibrating":false,"recovery_score":31.0,"resting_heart_rate":55.0,"hrv_rmssd_milli":38.0,"spo2_percentage":95.0,"skin_temp_celsius":33.9}}
         ],"next_token":null}
         """;
 

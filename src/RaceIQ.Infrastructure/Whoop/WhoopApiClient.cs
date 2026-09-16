@@ -1,6 +1,6 @@
 using System.Globalization;
 using System.Net.Http.Headers;
-using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace RaceIQ.Infrastructure.Whoop;
@@ -49,9 +49,9 @@ public class WhoopApiClient : IWhoopApiClient
                 recoveries.Add(new WhoopRecovery(
                     record.CycleId.ToString(CultureInfo.InvariantCulture),
                     record.CreatedAt.UtcDateTime,
-                    record.Score.RecoveryScore,
+                    (int)Math.Round(record.Score.RecoveryScore),
                     record.Score.HrvRmssdMilli,
-                    record.Score.RestingHeartRate));
+                    (int)Math.Round(record.Score.RestingHeartRate)));
             }
 
             nextToken = string.IsNullOrEmpty(page.NextToken) ? null : page.NextToken;
@@ -68,8 +68,20 @@ public class WhoopApiClient : IWhoopApiClient
         var response = await _httpClient.SendAsync(request);
         response.EnsureSuccessStatusCode();
 
-        return await response.Content.ReadFromJsonAsync<T>()
-            ?? throw new InvalidOperationException($"WHOOP response from {url} was empty.");
+        // Read the body as text first so a shape we did not expect can be reported with
+        // the offending JSON, rather than as a bare "could not convert" message.
+        var body = await response.Content.ReadAsStringAsync();
+        try
+        {
+            return JsonSerializer.Deserialize<T>(body)
+                ?? throw new InvalidOperationException($"WHOOP response from {url} was empty.");
+        }
+        catch (JsonException ex)
+        {
+            var snippet = body.Length > 600 ? body[..600] + "..." : body;
+            throw new InvalidOperationException(
+                $"WHOOP response from {url} did not have the expected shape: {ex.Message} Body: {snippet}", ex);
+        }
     }
 
     private record WhoopProfilePayload(
@@ -85,8 +97,10 @@ public class WhoopApiClient : IWhoopApiClient
         [property: JsonPropertyName("score_state")] string? ScoreState,
         [property: JsonPropertyName("score")] WhoopRecoveryScore? Score);
 
+    // The reference docs list recovery_score and resting_heart_rate as integers, but the
+    // live API sends them as decimals (e.g. 72.0), so read them as doubles and round.
     private record WhoopRecoveryScore(
-        [property: JsonPropertyName("recovery_score")] int RecoveryScore,
-        [property: JsonPropertyName("resting_heart_rate")] int RestingHeartRate,
+        [property: JsonPropertyName("recovery_score")] double RecoveryScore,
+        [property: JsonPropertyName("resting_heart_rate")] double RestingHeartRate,
         [property: JsonPropertyName("hrv_rmssd_milli")] double HrvRmssdMilli);
 }
