@@ -49,6 +49,24 @@
     margin: 0;
 }
 
+.analysis-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: .75rem;
+}
+
+.analysis-header h2 {
+    margin: 0;
+}
+
+.analysis-meta {
+    margin: .25rem 0 0;
+    font-size: .8rem;
+    color: var(--text-muted);
+}
+
 .analysis-card {
     white-space: pre-wrap;
     line-height: 1.65;

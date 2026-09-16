@@ -95,7 +95,15 @@ else
     }
     else
     {
-        <h2>AI-pacinganalyse</h2>
+        <div class="analysis-header">
+            <div>
+                <h2>AI-pacinganalyse</h2>
+                <p class="analysis-meta">Lavet @_report.GeneratedAt.ToLocalTime().ToString("d. MMM yyyy HH:mm")</p>
+            </div>
+            <button class="btn btn-outline" @onclick="AnalyzeAsync" disabled="@_analyzing">
+                @(_analyzing ? "Analyserer..." : "Analysér igen")
+            </button>
+        </div>
         <div class="card analysis-card">@_report.ReportText</div>
     }
 

@@ -19,5 +19,6 @@ public class FakeAnalysisReportRepository : IAnalysisReportRepository
         Task.FromResult(_reports
             .Where(r => r.ActivityId == activityId)
             .OrderByDescending(r => r.GeneratedAt)
+            .ThenByDescending(r => r.Id)
             .FirstOrDefault());
 }

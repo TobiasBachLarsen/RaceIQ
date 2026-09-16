@@ -319,4 +319,29 @@ public class ActivityAnalysisServiceTests
         Assert.Contains("WHOOP recovery was 41%", claudeClient.LastPromptReceived);
         Assert.DoesNotContain("90%", claudeClient.LastPromptReceived);
     }
+    [Fact]
+    public async Task AnalyzeAsync_RunAgain_NewestReportWins()
+    {
+        var activityRepository = new FakeActivityRepository();
+        var reportRepository = new FakeAnalysisReportRepository();
+        var claudeClient = new FakeClaudeClient { ResponseText = "First take." };
+        var service = new ActivityAnalysisService(
+            activityRepository, reportRepository, claudeClient, new FakeRaceResultRepository(),
+            new FakeRecoveryDayRepository(), NullLogger<ActivityAnalysisService>.Instance);
+
+        var activity = await activityRepository.AddAsync(new Activity
+        {
+            UserId = "user-1",
+            StravaActivityId = "1",
+            Name = "Ride",
+            StreamDataJson = "[]"
+        });
+
+        await service.AnalyzeAsync(activity.Id, "user-1");
+        claudeClient.ResponseText = "Second take, now with recovery.";
+        await service.AnalyzeAsync(activity.Id, "user-1");
+
+        var shown = await reportRepository.GetForActivityAsync(activity.Id);
+        Assert.Equal("Second take, now with recovery.", shown!.ReportText);
+    }
 }
