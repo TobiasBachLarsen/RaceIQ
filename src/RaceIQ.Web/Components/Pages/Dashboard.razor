@@ -9,8 +9,10 @@
 @inject IConnectedAccountRepository ConnectedAccountRepository
 @inject IActivityRepository ActivityRepository
 @inject IRaceResultRepository RaceResultRepository
+@inject IRecoveryDayRepository RecoveryDayRepository
 @inject SyncCoordinator SyncCoordinator
 @inject ILogger<Dashboard> Logger
+@inject NavigationManager Navigation
 
 <div class="dashboard-header">
     <h1>Dine ture</h1>
@@ -25,7 +27,7 @@
 
 @if (_activities is { Count: > 0 } && _stats is not null)
 {
-    <OverviewPanel Stats="_stats" />
+    <OverviewPanel Stats="_stats" LatestRecovery="_latestRecovery" />
 }
 
 @if (_connectedAccount is null)
@@ -44,23 +46,12 @@ else if (_connectedAccount.Status == ConnectedAccountStatus.NeedsReconnect)
     </div>
 }
 
-<ProviderConnectionCard
-    Account="_zwiftPowerAccount"
-    ActionUrl="/zwiftpower/connect"
-    PrimaryFieldName="sessionCookie"
-    PrimaryFieldPlaceholder="Session-cookie"
-    ConnectButtonText="Forbind ZwiftPower"
-    ReconnectBadgeText="ZwiftPower skal genoprettes"
-    ReconnectMessage="Cookien er sandsynligvis udløbet. Gentag forbindelsen nedenfor med en frisk cookie.">
-    <Instructions>
-        <p>
-            Forbind ZwiftPower for at få dine løbsresultater vist. Log ind på
-            <a href="https://zwiftpower.com" target="_blank" rel="noopener">zwiftpower.com</a>,
-            åbn browserens udviklerværktøjer (Application/Storage → Cookies), kopiér din
-            session-cookie, og find dit Zwift-rytter-id på din profilside (tallet i URL'en).
-        </p>
-    </Instructions>
-</ProviderConnectionCard>
+<ZwiftPowerImportCard InitialRiderId="@_zwiftPowerAccount?.ExternalAccountId" />
+
+@if (_zwiftPowerMessage is not null)
+{
+    <div class="alert @(_zwiftPowerImportFailed ? "alert-danger" : "alert-success")">@_zwiftPowerMessage</div>
+}
 
 <ProviderConnectionCard
     Account="_zwiftRacingAccount"
@@ -77,6 +68,22 @@ else if (_connectedAccount.Status == ConnectedAccountStatus.NeedsReconnect)
         </p>
     </Instructions>
 </ProviderConnectionCard>
+
+@if (_whoopAccount is null)
+{
+    <div class="card empty-state">
+        <p>Forbind WHOOP for at se din daglige restitution (recovery, HRV og hvilepuls) sammen med dine ture.</p>
+        <a href="/whoop/connect" class="btn btn-primary">Forbind WHOOP</a>
+    </div>
+}
+else if (_whoopAccount.Status == ConnectedAccountStatus.NeedsReconnect)
+{
+    <div class="card empty-state">
+        <span class="status-badge status-badge--warning">WHOOP skal genoprettes</span>
+        <p>Din WHOOP-forbindelse skal opdateres, før restitution kan synkroniseres igen.</p>
+        <a href="/whoop/connect" class="btn btn-primary">Genopret forbindelse</a>
+    </div>
+}
 
 @if (_syncError is not null)
 {
@@ -101,23 +108,50 @@ else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
     private ConnectedAccount? _connectedAccount;
     private ConnectedAccount? _zwiftPowerAccount;
     private ConnectedAccount? _zwiftRacingAccount;
+    private ConnectedAccount? _whoopAccount;
+    private RecoveryDay? _latestRecovery;
     private IReadOnlyList<Activity>? _activities;
     private IReadOnlyDictionary<int, IReadOnlyList<RaceResult>> _raceResultsByActivityId =
         new Dictionary<int, IReadOnlyList<RaceResult>>();
     private OverviewStats? _stats;
     private bool _syncing;
     private string? _syncError;
+    private string? _zwiftPowerMessage;
+    private bool _zwiftPowerImportFailed;
     private string _userId = string.Empty;
 
+    // ZwiftPower is a manual paste-import, not a synced provider, so it doesn't count here.
     private bool AnyProviderConnected =>
         _connectedAccount is { Status: ConnectedAccountStatus.Connected } ||
-        _zwiftPowerAccount is { Status: ConnectedAccountStatus.Connected } ||
-        _zwiftRacingAccount is { Status: ConnectedAccountStatus.Connected };
+        _zwiftRacingAccount is { Status: ConnectedAccountStatus.Connected } ||
+        _whoopAccount is { Status: ConnectedAccountStatus.Connected };
 
     protected override async Task OnInitializedAsync()
     {
         _userId = await GetUserIdAsync();
+        ReadZwiftPowerImportOutcome();
         await LoadStateAsync();
+    }
+
+    // The ZwiftPower import is a plain form post that redirects back here with its
+    // outcome in the query string ("12-9" = imported-matched, or "error").
+    private void ReadZwiftPowerImportOutcome()
+    {
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(Navigation.Uri).Query);
+        if (!query.TryGetValue("zwiftpower", out var value))
+            return;
+
+        var outcome = value.ToString();
+        if (outcome == "error")
+        {
+            _zwiftPowerImportFailed = true;
+            _zwiftPowerMessage = "Teksten kunne ikke læses som ZwiftPower-resultater. Åbn linket, marker alt, kopiér og indsæt igen.";
+            return;
+        }
+
+        var parts = outcome.Split('-');
+        if (parts.Length == 2 && int.TryParse(parts[0], out var imported) && int.TryParse(parts[1], out var matched))
+            _zwiftPowerMessage = $"Importerede {imported} løb fra ZwiftPower, {matched} matchet til dine ture.";
     }
 
     private async Task<string> GetUserIdAsync()
@@ -126,8 +160,8 @@ else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
         return state.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
     }
 
-    // The full dashboard state: the three provider accounts plus activities and their
-    // race results. Used as-is on first load; SyncAsync below reloads the same two
+    // The full dashboard state: the four provider accounts plus activities, their
+    // race results, and the latest recovery. Used as-is on first load; SyncAsync below reloads the same two
     // halves (accounts, activities+race-results) separately instead, since it needs
     // different error handling for each.
     private async Task LoadStateAsync()
@@ -141,6 +175,7 @@ else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
         _connectedAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.Strava);
         _zwiftPowerAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.ZwiftPower);
         _zwiftRacingAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.ZwiftRacing);
+        _whoopAccount = await ConnectedAccountRepository.GetAsync(_userId, ConnectedAccountProvider.Whoop);
     }
 
     private async Task LoadActivitiesAndRaceResultsAsync()
@@ -150,6 +185,7 @@ else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
 
         var allRaceResults = await RaceResultRepository.GetAllForUserAsync(_userId);
         _stats = OverviewStatsBuilder.Build(_activities, allRaceResults, DateTime.UtcNow);
+        _latestRecovery = await RecoveryDayRepository.GetLatestAsync(_userId);
     }
 
     private async Task LoadRaceResultsAsync()

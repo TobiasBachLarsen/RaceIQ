@@ -25,6 +25,7 @@ public class EfAnalysisReportRepository : IAnalysisReportRepository
         return await _context.AnalysisReports
             .Where(r => r.ActivityId == activityId)
             .OrderByDescending(r => r.GeneratedAt)
+            .ThenByDescending(r => r.Id)
             .FirstOrDefaultAsync();
     }
 }

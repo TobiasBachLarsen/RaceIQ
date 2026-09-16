@@ -141,6 +141,17 @@ hr {
     text-decoration: none;
 }
 
+.btn-outline {
+    background: var(--surface);
+    color: var(--text);
+    border-color: var(--border);
+}
+
+.btn-outline:hover:not(:disabled) {
+    background: var(--surface-hover);
+    text-decoration: none;
+}
+
 .btn-lg {
     padding: .8rem 1.4rem;
     font-size: 1rem;

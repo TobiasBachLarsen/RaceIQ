@@ -8,6 +8,7 @@
 @inject IActivityRepository ActivityRepository
 @inject IAnalysisReportRepository AnalysisReportRepository
 @inject IRaceResultRepository RaceResultRepository
+@inject IRecoveryDayRepository RecoveryDayRepository
 @inject IActivityAnalysisService ActivityAnalysisService
 @inject ILogger<ActivityDetail> Logger
 
@@ -65,6 +66,27 @@ else
         </div>
     }
 
+    @if (_recovery is not null)
+    {
+        <div class="card recovery-card">
+            <h3>Restitution den morgen <span class="recovery-source">WHOOP</span></h3>
+            <dl class="recovery-strip">
+                <div>
+                    <dt>Recovery</dt>
+                    <dd class="@RecoveryClass(_recovery.RecoveryScore)">@_recovery.RecoveryScore %</dd>
+                </div>
+                <div>
+                    <dt>HRV</dt>
+                    <dd>@_recovery.HrvMs.ToString("F0") ms</dd>
+                </div>
+                <div>
+                    <dt>Hvilepuls</dt>
+                    <dd>@_recovery.RestingHeartRate bpm</dd>
+                </div>
+            </dl>
+        </div>
+    }
+
     @if (_report is null)
     {
         <button class="btn btn-primary" @onclick="AnalyzeAsync" disabled="@_analyzing">
@@ -73,7 +95,15 @@ else
     }
     else
     {
-        <h2>AI-pacinganalyse</h2>
+        <div class="analysis-header">
+            <div>
+                <h2>AI-pacinganalyse</h2>
+                <p class="analysis-meta">Lavet @_report.GeneratedAt.ToLocalTime().ToString("d. MMM yyyy HH:mm")</p>
+            </div>
+            <button class="btn btn-outline" @onclick="AnalyzeAsync" disabled="@_analyzing">
+                @(_analyzing ? "Analyserer..." : "Analysér igen")
+            </button>
+        </div>
         <div class="card analysis-card">@_report.ReportText</div>
     }
 
@@ -93,6 +123,7 @@ else
     private Activity? _activity;
     private AnalysisReport? _report;
     private IReadOnlyList<RaceResult> _raceResults = Array.Empty<RaceResult>();
+    private RecoveryDay? _recovery;
     private bool _analyzing;
     private string? _analysisError;
     private string _userId = string.Empty;
@@ -107,8 +138,13 @@ else
         {
             _report = await AnalysisReportRepository.GetForActivityAsync(_activity.Id);
             _raceResults = await RaceResultRepository.GetForActivityAsync(_activity.Id);
+            _recovery = await RecoveryDayRepository.GetForDateAsync(_userId, DateOnly.FromDateTime(_activity.StartedAt));
         }
     }
+
+    // WHOOP's own bands: green from 67 %, yellow from 34 %, red below.
+    private static string RecoveryClass(int score) =>
+        score >= 67 ? "recovery--high" : score >= 34 ? "recovery--mid" : "recovery--low";
 
     private async Task AnalyzeAsync()
     {

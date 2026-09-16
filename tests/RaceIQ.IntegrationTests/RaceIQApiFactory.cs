@@ -7,8 +7,8 @@ using Npgsql;
 using RaceIQ.Application;
 using RaceIQ.Infrastructure;
 using RaceIQ.Infrastructure.Strava;
-using RaceIQ.Infrastructure.ZwiftPower;
 using RaceIQ.Infrastructure.ZwiftRacing;
+using RaceIQ.Infrastructure.Whoop;
 using Xunit;
 
 // Both StravaCallbackTests and SyncAndAnalyzeFlowTests use IClassFixture<RaceIQApiFactory>,
@@ -26,8 +26,9 @@ public class RaceIQApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     public Func<HttpRequestMessage, HttpResponseMessage>? StravaOAuthResponder { get; set; }
     public Func<HttpRequestMessage, HttpResponseMessage>? StravaApiResponder { get; set; }
-    public Func<HttpRequestMessage, HttpResponseMessage>? ZwiftPowerApiResponder { get; set; }
     public Func<HttpRequestMessage, HttpResponseMessage>? ZwiftRacingApiResponder { get; set; }
+    public Func<HttpRequestMessage, HttpResponseMessage>? WhoopOAuthResponder { get; set; }
+    public Func<HttpRequestMessage, HttpResponseMessage>? WhoopApiResponder { get; set; }
     public string ClaudeAnalysisText { get; set; } = "Fake analysis: pacing was even throughout.";
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -52,15 +53,20 @@ public class RaceIQApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                     new FakeHttpMessageHandler(req => StravaApiResponder?.Invoke(req)
                         ?? throw new InvalidOperationException("No StravaApiResponder configured for this test.")));
 
-            services.AddHttpClient<IZwiftPowerApiClient, ZwiftPowerApiClient>()
-                .ConfigurePrimaryHttpMessageHandler(() =>
-                    new FakeHttpMessageHandler(req => ZwiftPowerApiResponder?.Invoke(req)
-                        ?? throw new InvalidOperationException("No ZwiftPowerApiResponder configured for this test.")));
-
             services.AddHttpClient<IZwiftRacingApiClient, ZwiftRacingApiClient>()
                 .ConfigurePrimaryHttpMessageHandler(() =>
                     new FakeHttpMessageHandler(req => ZwiftRacingApiResponder?.Invoke(req)
                         ?? throw new InvalidOperationException("No ZwiftRacingApiResponder configured for this test.")));
+
+            services.AddHttpClient<IWhoopOAuthService, WhoopOAuthService>()
+                .ConfigurePrimaryHttpMessageHandler(() =>
+                    new FakeHttpMessageHandler(req => WhoopOAuthResponder?.Invoke(req)
+                        ?? throw new InvalidOperationException("No WhoopOAuthResponder configured for this test.")));
+
+            services.AddHttpClient<IWhoopApiClient, WhoopApiClient>()
+                .ConfigurePrimaryHttpMessageHandler(() =>
+                    new FakeHttpMessageHandler(req => WhoopApiResponder?.Invoke(req)
+                        ?? throw new InvalidOperationException("No WhoopApiResponder configured for this test.")));
 
             var claudeDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(IClaudeClient));
             if (claudeDescriptor is not null)

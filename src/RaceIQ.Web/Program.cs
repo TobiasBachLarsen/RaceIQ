@@ -10,6 +10,7 @@ using RaceIQ.Infrastructure.Claude;
 using RaceIQ.Infrastructure.Strava;
 using RaceIQ.Infrastructure.ZwiftPower;
 using RaceIQ.Infrastructure.ZwiftRacing;
+using RaceIQ.Infrastructure.Whoop;
 using RaceIQ.Application;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -44,14 +45,23 @@ builder.Services.AddHttpClient<IStravaApiClient, StravaApiClient>();
 builder.Services.AddProviderSync<StravaSyncService>();
 builder.Services.AddScoped<IActivityRepository, EfActivityRepository>();
 
-builder.Services.AddHttpClient<IZwiftPowerApiClient, ZwiftPowerApiClient>();
-builder.Services.AddProviderSync<ZwiftPowerSyncService>();
+builder.Services.AddScoped<ZwiftPowerImportService>();
+// A pasted ZwiftPower results document can be a few hundred KB; the default 4 MB form
+// value limit is fine, but make the ceiling explicit so a large history can't hit it.
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+    options.ValueLengthLimit = 16 * 1024 * 1024);
 builder.Services.AddScoped<IRaceResultRepository, EfRaceResultRepository>();
 builder.Services.AddScoped<IRaceResultMatcher, RaceResultMatcher>();
 builder.Services.AddScoped<RaceResultImporter>();
 
 builder.Services.AddHttpClient<IZwiftRacingApiClient, ZwiftRacingApiClient>();
 builder.Services.AddProviderSync<ZwiftRacingSyncService>();
+
+builder.Services.Configure<WhoopOAuthOptions>(builder.Configuration.GetSection("Whoop"));
+builder.Services.AddHttpClient<IWhoopOAuthService, WhoopOAuthService>();
+builder.Services.AddHttpClient<IWhoopApiClient, WhoopApiClient>();
+builder.Services.AddProviderSync<WhoopSyncService>();
+builder.Services.AddScoped<IRecoveryDayRepository, EfRecoveryDayRepository>();
 
 builder.Services.AddScoped<SyncCoordinator>();
 
@@ -115,6 +125,7 @@ app.MapAdditionalIdentityEndpoints();
 
 app.MapStravaAuthEndpoints();
 app.MapZwiftAuthEndpoints();
+app.MapWhoopAuthEndpoints();
 
 app.Run();
 

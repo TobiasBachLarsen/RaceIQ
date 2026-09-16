@@ -7,6 +7,8 @@ namespace RaceIQ.Application;
 // every provider that syncs race results (ZwiftPower, ZwiftRacing, ...). Each provider
 // service is responsible only for fetching its own results and projecting them onto
 // RaceResult; this class owns what happens to them afterwards.
+public record RaceResultImportOutcome(int Imported, int Matched);
+
 public class RaceResultImporter
 {
     private readonly IRaceResultRepository _raceResultRepository;
@@ -26,7 +28,7 @@ public class RaceResultImporter
         _logger = logger;
     }
 
-    public async Task ImportAsync(string userId, IReadOnlyList<RaceResult> incoming)
+    public async Task<RaceResultImportOutcome> ImportAsync(string userId, IReadOnlyList<RaceResult> incoming)
     {
         var activities = await _activityRepository.GetAllForUserAsync(userId);
         // Every result upserted in this pass, matched or not, so the retry pass below can
@@ -70,5 +72,7 @@ public class RaceResultImporter
         _logger.LogInformation(
             "Imported {ImportedCount} race results for user {UserId}, matched {MatchedCount} to activities",
             incoming.Count, userId, matchedCount);
+
+        return new RaceResultImportOutcome(incoming.Count, matchedCount);
     }
 }

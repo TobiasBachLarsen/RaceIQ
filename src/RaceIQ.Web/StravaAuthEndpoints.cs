@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using Microsoft.AspNetCore.DataProtection;
 using RaceIQ.Application;
 using RaceIQ.Domain;
@@ -9,16 +8,13 @@ namespace RaceIQ.Web;
 public static class StravaAuthEndpoints
 {
     private const string ProtectorPurpose = "RaceIQ.StravaOAuthState";
-    private static readonly TimeSpan StateLifetime = TimeSpan.FromMinutes(10);
 
     public static void MapStravaAuthEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/strava/connect", (HttpContext context, IStravaOAuthService oauth, IDataProtectionProvider dataProtection) =>
         {
             var userId = context.GetRequiredUserId("Strava connect");
-
-            var protector = dataProtection.CreateProtector(ProtectorPurpose).ToTimeLimitedDataProtector();
-            var state = protector.Protect(userId, StateLifetime);
+            var state = OAuthState.Protect(dataProtection, ProtectorPurpose, userId);
 
             return Results.Redirect(oauth.BuildAuthorizeUrl(state));
         }).RequireAuthorization();
@@ -30,16 +26,9 @@ public static class StravaAuthEndpoints
             IConnectedAccountRepository accountRepository,
             IDataProtectionProvider dataProtection) =>
         {
-            string userId;
-            try
-            {
-                var protector = dataProtection.CreateProtector(ProtectorPurpose).ToTimeLimitedDataProtector();
-                userId = protector.Unprotect(state);
-            }
-            catch (CryptographicException)
-            {
+            var userId = OAuthState.TryUnprotect(dataProtection, ProtectorPurpose, state);
+            if (userId is null)
                 return Results.BadRequest("Invalid or expired Strava connection request.");
-            }
 
             var tokenResponse = await oauth.ExchangeCodeAsync(code);
 

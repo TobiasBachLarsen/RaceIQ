@@ -12,10 +12,7 @@
             <span class="status-badge status-badge--warning">@ReconnectBadgeText</span>
             <p>@ReconnectMessage</p>
         }
-        else
-        {
-            @Instructions
-        }
+        @Instructions
         <form method="post" action="@ActionUrl">
             <AntiforgeryToken />
             <input class="form-control mb-3" name="@PrimaryFieldName" placeholder="@PrimaryFieldPlaceholder" required />

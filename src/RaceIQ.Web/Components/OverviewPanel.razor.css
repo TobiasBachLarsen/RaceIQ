@@ -49,6 +49,7 @@
 }
 
 .stat-num--up { color: var(--success); }
+.stat-num--mid { color: var(--warning); }
 .stat-num--down { color: var(--danger); }
 
 .stat-label {
