@@ -1,4 +1,5 @@
 @using RaceIQ.Application
+@using RaceIQ.Domain
 
 <div class="overview card">
     <section class="overview-section">
@@ -56,11 +57,40 @@
             </div>
         </div>
     </section>
+
+    @if (LatestRecovery is { } recovery)
+    {
+        <section class="overview-section overview-section--recent">
+            <p class="overview-caption">Restitution · WHOOP · @recovery.Date.ToString("d. MMM")</p>
+            <div class="stat-grid">
+                <div class="stat">
+                    <span class="stat-num @RecoveryClass(recovery.RecoveryScore)">@recovery.RecoveryScore<span class="stat-unit">%</span></span>
+                    <span class="stat-label">Recovery</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-num">@recovery.HrvMs.ToString("N0")<span class="stat-unit">ms</span></span>
+                    <span class="stat-label">HRV</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-num">@recovery.RestingHeartRate<span class="stat-unit">bpm</span></span>
+                    <span class="stat-label">Hvilepuls</span>
+                </div>
+            </div>
+        </section>
+    }
 </div>
 
 @code {
     [Parameter, EditorRequired]
     public OverviewStats Stats { get; set; } = default!;
+
+    // The most recent WHOOP reading, when a WHOOP account is connected and has synced.
+    [Parameter]
+    public RecoveryDay? LatestRecovery { get; set; }
+
+    // WHOOP's own bands: green from 67 %, yellow from 34 %, red below.
+    private static string RecoveryClass(int score) =>
+        score >= 67 ? "stat-num--up" : score >= 34 ? "stat-num--mid" : "stat-num--down";
 
     private static string Hours(TimeSpan span)
     {
