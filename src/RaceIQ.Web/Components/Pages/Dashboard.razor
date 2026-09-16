@@ -12,6 +12,7 @@
 @inject IRecoveryDayRepository RecoveryDayRepository
 @inject SyncCoordinator SyncCoordinator
 @inject ILogger<Dashboard> Logger
+@inject NavigationManager Navigation
 
 <div class="dashboard-header">
     <h1>Dine ture</h1>
@@ -45,26 +46,12 @@ else if (_connectedAccount.Status == ConnectedAccountStatus.NeedsReconnect)
     </div>
 }
 
-<ProviderConnectionCard
-    Account="_zwiftPowerAccount"
-    ActionUrl="/zwiftpower/connect"
-    PrimaryFieldName="sessionCookie"
-    PrimaryFieldPlaceholder="Hele Cookie-headeren"
-    ConnectButtonText="Forbind ZwiftPower"
-    ReconnectBadgeText="ZwiftPower skal genoprettes"
-    ReconnectMessage="Cookien er udløbet eller mangler CloudFront-cookies. Kopiér hele Cookie-headeren igen som beskrevet nedenfor og forbind på ny.">
-    <Instructions>
-        <p>
-            Forbind ZwiftPower for at få dine løbsresultater vist. Log ind på
-            <a href="https://zwiftpower.com" target="_blank" rel="noopener">zwiftpower.com</a>
-            og åbn din profilside. Åbn browserens udviklerværktøjer, fanen Network, genindlæs
-            siden, og klik på requesten der hedder <code>&lt;dit-id&gt;_all.json</code>. Under
-            Request Headers kopierer du hele værdien af <code>Cookie</code> (den indeholder
-            både din login-cookie og de tre CloudFront-cookies, som ZwiftPower kræver). Dit
-            Zwift-rytter-id er tallet i profilsidens URL.
-        </p>
-    </Instructions>
-</ProviderConnectionCard>
+<ZwiftPowerImportCard InitialRiderId="@_zwiftPowerAccount?.ExternalAccountId" />
+
+@if (_zwiftPowerMessage is not null)
+{
+    <div class="alert @(_zwiftPowerImportFailed ? "alert-danger" : "alert-success")">@_zwiftPowerMessage</div>
+}
 
 <ProviderConnectionCard
     Account="_zwiftRacingAccount"
@@ -129,18 +116,42 @@ else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
     private OverviewStats? _stats;
     private bool _syncing;
     private string? _syncError;
+    private string? _zwiftPowerMessage;
+    private bool _zwiftPowerImportFailed;
     private string _userId = string.Empty;
 
+    // ZwiftPower is a manual paste-import, not a synced provider, so it doesn't count here.
     private bool AnyProviderConnected =>
         _connectedAccount is { Status: ConnectedAccountStatus.Connected } ||
-        _zwiftPowerAccount is { Status: ConnectedAccountStatus.Connected } ||
         _zwiftRacingAccount is { Status: ConnectedAccountStatus.Connected } ||
         _whoopAccount is { Status: ConnectedAccountStatus.Connected };
 
     protected override async Task OnInitializedAsync()
     {
         _userId = await GetUserIdAsync();
+        ReadZwiftPowerImportOutcome();
         await LoadStateAsync();
+    }
+
+    // The ZwiftPower import is a plain form post that redirects back here with its
+    // outcome in the query string ("12-9" = imported-matched, or "error").
+    private void ReadZwiftPowerImportOutcome()
+    {
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(Navigation.Uri).Query);
+        if (!query.TryGetValue("zwiftpower", out var value))
+            return;
+
+        var outcome = value.ToString();
+        if (outcome == "error")
+        {
+            _zwiftPowerImportFailed = true;
+            _zwiftPowerMessage = "Teksten kunne ikke læses som ZwiftPower-resultater. Åbn linket, marker alt, kopiér og indsæt igen.";
+            return;
+        }
+
+        var parts = outcome.Split('-');
+        if (parts.Length == 2 && int.TryParse(parts[0], out var imported) && int.TryParse(parts[1], out var matched))
+            _zwiftPowerMessage = $"Importerede {imported} løb fra ZwiftPower, {matched} matchet til dine ture.";
     }
 
     private async Task<string> GetUserIdAsync()

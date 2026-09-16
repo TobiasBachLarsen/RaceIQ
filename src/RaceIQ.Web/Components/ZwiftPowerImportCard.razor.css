@@ -1,0 +1,23 @@
+.import-card {
+    margin-bottom: 1.5rem;
+}
+
+.import-card h3 {
+    margin: 0 0 .5rem;
+}
+
+.import-help {
+    color: var(--text-muted);
+    margin: 0 0 1rem;
+}
+
+.import-link {
+    margin: -.5rem 0 1rem;
+    font-weight: 600;
+}
+
+.import-card textarea {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: .8rem;
+    resize: vertical;
+}

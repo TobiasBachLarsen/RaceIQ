@@ -7,7 +7,6 @@ using Npgsql;
 using RaceIQ.Application;
 using RaceIQ.Infrastructure;
 using RaceIQ.Infrastructure.Strava;
-using RaceIQ.Infrastructure.ZwiftPower;
 using RaceIQ.Infrastructure.ZwiftRacing;
 using RaceIQ.Infrastructure.Whoop;
 using Xunit;
@@ -27,7 +26,6 @@ public class RaceIQApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     public Func<HttpRequestMessage, HttpResponseMessage>? StravaOAuthResponder { get; set; }
     public Func<HttpRequestMessage, HttpResponseMessage>? StravaApiResponder { get; set; }
-    public Func<HttpRequestMessage, HttpResponseMessage>? ZwiftPowerApiResponder { get; set; }
     public Func<HttpRequestMessage, HttpResponseMessage>? ZwiftRacingApiResponder { get; set; }
     public Func<HttpRequestMessage, HttpResponseMessage>? WhoopOAuthResponder { get; set; }
     public Func<HttpRequestMessage, HttpResponseMessage>? WhoopApiResponder { get; set; }
@@ -54,11 +52,6 @@ public class RaceIQApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                 .ConfigurePrimaryHttpMessageHandler(() =>
                     new FakeHttpMessageHandler(req => StravaApiResponder?.Invoke(req)
                         ?? throw new InvalidOperationException("No StravaApiResponder configured for this test.")));
-
-            services.AddHttpClient<IZwiftPowerApiClient, ZwiftPowerApiClient>()
-                .ConfigurePrimaryHttpMessageHandler(() =>
-                    new FakeHttpMessageHandler(req => ZwiftPowerApiResponder?.Invoke(req)
-                        ?? throw new InvalidOperationException("No ZwiftPowerApiResponder configured for this test.")));
 
             services.AddHttpClient<IZwiftRacingApiClient, ZwiftRacingApiClient>()
                 .ConfigurePrimaryHttpMessageHandler(() =>

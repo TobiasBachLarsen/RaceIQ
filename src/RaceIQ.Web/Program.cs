@@ -45,8 +45,11 @@ builder.Services.AddHttpClient<IStravaApiClient, StravaApiClient>();
 builder.Services.AddProviderSync<StravaSyncService>();
 builder.Services.AddScoped<IActivityRepository, EfActivityRepository>();
 
-builder.Services.AddHttpClient<IZwiftPowerApiClient, ZwiftPowerApiClient>();
-builder.Services.AddProviderSync<ZwiftPowerSyncService>();
+builder.Services.AddScoped<ZwiftPowerImportService>();
+// A pasted ZwiftPower results document can be a few hundred KB; the default 4 MB form
+// value limit is fine, but make the ceiling explicit so a large history can't hit it.
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+    options.ValueLengthLimit = 16 * 1024 * 1024);
 builder.Services.AddScoped<IRaceResultRepository, EfRaceResultRepository>();
 builder.Services.AddScoped<IRaceResultMatcher, RaceResultMatcher>();
 builder.Services.AddScoped<RaceResultImporter>();

@@ -1,35 +1,41 @@
-using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace RaceIQ.Infrastructure.ZwiftPower;
 
-public class ZwiftPowerApiClient : IZwiftPowerApiClient
+public record ZwiftPowerRaceResult(
+    string RaceId,
+    string EventName,
+    DateTime EventDate,
+    string? Category,
+    int? Position,
+    TimeSpan? Duration,
+    double? RatingChange);
+
+// Parses the JSON that ZwiftPower serves at /cache3/profile/{riderId}_all.json. The rider
+// pastes that document into RaceIQ themselves: the endpoint sits behind CloudFront signed
+// cookies that only their logged-in browser has, so the app cannot fetch it directly.
+public static class ZwiftPowerResultParser
 {
-    private readonly HttpClient _httpClient;
-
-    public ZwiftPowerApiClient(HttpClient httpClient)
+    public static IReadOnlyList<ZwiftPowerRaceResult> Parse(string json)
     {
-        _httpClient = httpClient;
-    }
-
-    public async Task<IReadOnlyList<ZwiftPowerRaceResult>> GetRecentResultsAsync(
-        string sessionCookie, string zwiftRiderId)
-    {
-        using var request = new HttpRequestMessage(
-            HttpMethod.Get,
-            $"https://zwiftpower.com/cache3/profile/{Uri.EscapeDataString(zwiftRiderId)}_all.json");
-        request.Headers.Add("Cookie", sessionCookie);
-
-        var response = await _httpClient.SendAsync(request);
-        response.EnsureSuccessStatusCode();
+        ZwiftPowerResponseEnvelope? envelope;
+        try
+        {
+            envelope = JsonSerializer.Deserialize<ZwiftPowerResponseEnvelope>(json);
+        }
+        catch (JsonException ex)
+        {
+            throw new ZwiftPowerImportException("The pasted text is not ZwiftPower's results JSON.", ex);
+        }
 
         // The cache3 profile endpoint wraps its row array in an object under a "data"
-        // property (it does not return a bare array), so parse the envelope first.
-        var envelope = await response.Content.ReadFromJsonAsync<ZwiftPowerResponseEnvelope>()
-            ?? new ZwiftPowerResponseEnvelope(null);
-        var raw = envelope.Data ?? new();
+        // property (it does not return a bare array). A document without it is some other
+        // page - most likely the HTML of the profile itself.
+        if (envelope?.Data is null)
+            throw new ZwiftPowerImportException("The pasted JSON has no \"data\" list of results.");
 
-        return raw
+        return envelope.Data
             // f_t marks the entry type ("TYPE_RACE", "TYPE_WORKOUT", "TYPE_RIDE"); only
             // real races belong in the race-result list. A disqualified race is still a
             // race (f_t stays TYPE_RACE, category becomes "DQ"), so filter on f_t alone.

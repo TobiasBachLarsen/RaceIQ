@@ -11,9 +11,10 @@ any ride.
 - **AI pacing analysis** — a Danish, ride-specific write-up grounded in the real
   power/HR data, aware of whether the ride was a race (so it doesn't flag normal
   pack-riding surges as pacing mistakes).
-- **Race-result import** — pull results from ZwiftPower (session cookie) and ZwiftRacing
-  (API key), match them to the matching Strava ride by date and duration, and show
-  category, placement, and rating change on the ride.
+- **Race-result import** — paste your results JSON from ZwiftPower (it has no API and its
+  data sits behind signed CloudFront cookies, so you copy it from your own logged-in
+  browser) or connect ZwiftRacing (API key); results are matched to the Strava ride by
+  date and duration and shown as category, placement, and rating change on the ride.
 - **WHOOP recovery** — connect WHOOP via OAuth and sync your daily recovery score, HRV,
   and resting heart rate. The latest reading sits on the overview, each ride shows the
   recovery from the morning it was ridden, and the AI analysis takes it into account (a
@@ -29,7 +30,7 @@ any ride.
 - `RaceIQ.Application` — business logic behind repository/client interfaces,
   independent of EF Core, Strava, Zwift, and Claude
 - `RaceIQ.Infrastructure` — EF Core + PostgreSQL, Strava and WHOOP OAuth/API clients,
-  ZwiftPower and ZwiftRacing clients, Claude API client
+  the ZwiftPower results parser, the ZwiftRacing client, Claude API client
 - `RaceIQ.Web` — ASP.NET Core Blazor Server with ASP.NET Core Identity
 
 ## Running locally
@@ -77,11 +78,11 @@ dotnet test RaceIQ.sln
 
 ## Security
 
-Provider credentials — the Strava and WHOOP access/refresh tokens, the ZwiftPower session
-cookie, and the ZwiftRacing API key — are encrypted at rest. The `ConnectedAccount.AccessToken`
+Provider credentials — the Strava and WHOOP access/refresh tokens and the ZwiftRacing API
+key — are encrypted at rest. The `ConnectedAccount.AccessToken`
 and `RefreshToken` columns run through an EF Core value converter backed by ASP.NET
 Core Data Protection (`IDataProtector`), so the database only ever stores ciphertext; the
-public Zwift rider id is not a secret and stays in clear text. Data Protection keys are
+public Zwift rider id (also all ZwiftPower stores) is not a secret and stays in clear text. Data Protection keys are
 persisted by the host's default key ring, so in a real deployment they must live somewhere
 stable and backed up — if the keys are lost a stored credential can no longer be decrypted
 and the account simply falls back to a reconnect prompt.

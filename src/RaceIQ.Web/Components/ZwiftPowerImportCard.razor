@@ -1,0 +1,42 @@
+@* ZwiftPower has no API and its results JSON sits behind CloudFront signed cookies, so
+   the rider fetches it in their own logged-in browser and pastes it here. Typing the
+   rider id builds a direct link to that JSON, and the id is remembered after the first
+   import so next time it is one click, select-all, copy, paste. *@
+
+<div class="card import-card">
+    <h3>ZwiftPower-løbsresultater</h3>
+    <p class="import-help">
+        Skriv dit Zwift-rytter-id (tallet i URL'en på din ZwiftPower-profil), åbn linket
+        der dukker op, marker alt på siden (Cmd+A / Ctrl+A), kopiér, og indsæt her.
+        Du skal være logget ind på zwiftpower.com i den browser, du åbner linket i.
+    </p>
+    <form method="post" action="/zwiftpower/import">
+        <AntiforgeryToken />
+        <input class="form-control mb-3" name="zwiftRiderId" placeholder="Zwift-rytter-id"
+               required @bind="_riderId" @bind:event="oninput" />
+        @if (!string.IsNullOrWhiteSpace(_riderId))
+        {
+            <p class="import-link">
+                <a href="https://zwiftpower.com/cache3/profile/@(_riderId.Trim())_all.json" target="_blank" rel="noopener">
+                    Åbn dine resultater på ZwiftPower &rarr;
+                </a>
+            </p>
+        }
+        <textarea class="form-control mb-3" name="resultsJson" rows="4" required
+                  placeholder='Indsæt teksten fra siden her (den starter med {"data":[ ...)'></textarea>
+        <button type="submit" class="btn btn-primary">Importér resultater</button>
+    </form>
+</div>
+
+@code {
+    [Parameter]
+    public string? InitialRiderId { get; set; }
+
+    private string _riderId = string.Empty;
+
+    protected override void OnParametersSet()
+    {
+        if (string.IsNullOrEmpty(_riderId) && !string.IsNullOrEmpty(InitialRiderId))
+            _riderId = InitialRiderId;
+    }
+}

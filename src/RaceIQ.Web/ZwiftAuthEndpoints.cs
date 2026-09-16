@@ -1,39 +1,49 @@
 using RaceIQ.Application;
 using RaceIQ.Domain;
+using RaceIQ.Infrastructure.ZwiftPower;
 
 namespace RaceIQ.Web;
 
-// Both Zwift providers connect the same way: paste one credential plus a rider id and
-// store a ConnectedAccount. Only the route, provider, and credential field name differ.
 public static class ZwiftAuthEndpoints
 {
     public static void MapZwiftAuthEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapZwiftConnectEndpoint("/zwiftpower/connect", ConnectedAccountProvider.ZwiftPower, "sessionCookie");
-        app.MapZwiftConnectEndpoint("/zwiftracing/connect", ConnectedAccountProvider.ZwiftRacing, "apiKey");
-    }
-
-    private static void MapZwiftConnectEndpoint(
-        this IEndpointRouteBuilder app,
-        string route,
-        ConnectedAccountProvider provider,
-        string credentialField)
-    {
-        app.MapPost(route, async (HttpContext context, IConnectedAccountRepository accountRepository) =>
+        // ZwiftRacing: paste an API key plus the rider id and store a ConnectedAccount.
+        app.MapPost("/zwiftracing/connect", async (HttpContext context, IConnectedAccountRepository accountRepository) =>
         {
-            var userId = context.GetRequiredUserId($"{provider} connect");
+            var userId = context.GetRequiredUserId("ZwiftRacing connect");
             var form = await context.Request.ReadFormAsync();
 
             await accountRepository.UpsertAsync(new ConnectedAccount
             {
                 UserId = userId,
-                Provider = provider,
-                AccessToken = form[credentialField].ToString(),
+                Provider = ConnectedAccountProvider.ZwiftRacing,
+                AccessToken = form["apiKey"].ToString(),
                 ExternalAccountId = form["zwiftRiderId"].ToString(),
                 Status = ConnectedAccountStatus.Connected
             });
 
             return Results.Redirect("/dashboard");
+        }).RequireAuthorization();
+
+        // ZwiftPower: the rider pastes their results JSON (see ZwiftPowerResultParser for
+        // why the app cannot fetch it). The outcome travels back to the dashboard in the
+        // query string, since a plain form post can't update the Blazor circuit directly.
+        app.MapPost("/zwiftpower/import", async (HttpContext context, ZwiftPowerImportService importService) =>
+        {
+            var userId = context.GetRequiredUserId("ZwiftPower import");
+            var form = await context.Request.ReadFormAsync();
+
+            try
+            {
+                var outcome = await importService.ImportAsync(
+                    userId, form["zwiftRiderId"].ToString(), form["resultsJson"].ToString());
+                return Results.Redirect($"/dashboard?zwiftpower={outcome.Imported}-{outcome.Matched}");
+            }
+            catch (ZwiftPowerImportException)
+            {
+                return Results.Redirect("/dashboard?zwiftpower=error");
+            }
         }).RequireAuthorization();
     }
 }
