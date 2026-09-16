@@ -196,7 +196,7 @@ public class ActivityAnalysisServiceTests
         var claudeClient = new FakeClaudeClient { ResponseText = "Great even pacing." };
         var service = new ActivityAnalysisService(
             activityRepository, reportRepository, claudeClient, new FakeRaceResultRepository(),
-            NullLogger<ActivityAnalysisService>.Instance);
+            new FakeRecoveryDayRepository(), NullLogger<ActivityAnalysisService>.Instance);
 
         var stream = new List<StreamPoint> { new(0, 200, 140, 90, 10, 0) };
         var activity = await activityRepository.AddAsync(new Activity
@@ -219,7 +219,7 @@ public class ActivityAnalysisServiceTests
     {
         var service = new ActivityAnalysisService(
             new FakeActivityRepository(), new FakeAnalysisReportRepository(), new FakeClaudeClient(),
-            new FakeRaceResultRepository(), NullLogger<ActivityAnalysisService>.Instance);
+            new FakeRaceResultRepository(), new FakeRecoveryDayRepository(), NullLogger<ActivityAnalysisService>.Instance);
 
         await Assert.ThrowsAsync<ActivityNotFoundException>(
             () => service.AnalyzeAsync(999, "user-1"));
@@ -231,7 +231,7 @@ public class ActivityAnalysisServiceTests
         var activityRepository = new FakeActivityRepository();
         var service = new ActivityAnalysisService(
             activityRepository, new FakeAnalysisReportRepository(), new FakeClaudeClient(),
-            new FakeRaceResultRepository(), NullLogger<ActivityAnalysisService>.Instance);
+            new FakeRaceResultRepository(), new FakeRecoveryDayRepository(), NullLogger<ActivityAnalysisService>.Instance);
 
         var activity = await activityRepository.AddAsync(new Activity
         {
@@ -243,5 +243,80 @@ public class ActivityAnalysisServiceTests
 
         await Assert.ThrowsAsync<ActivityNotFoundException>(
             () => service.AnalyzeAsync(activity.Id, "someone-else"));
+    }
+    [Fact]
+    public void BuildPrompt_WithRecovery_IncludesScoreHrvAndRestingHeartRate()
+    {
+        var activity = new Activity
+        {
+            UserId = "user-1",
+            StravaActivityId = "1",
+            Name = "Tired Tuesday",
+            StreamDataJson = "[]"
+        };
+        var recovery = new RecoveryDay
+        {
+            UserId = "user-1",
+            Date = new DateOnly(2026, 9, 10),
+            RecoveryScore = 28,
+            HrvMs = 37.6,
+            RestingHeartRate = 56,
+            ProviderRecordId = "93845"
+        };
+
+        var prompt = ActivityAnalysisService.BuildPrompt(activity, Array.Empty<RaceResult>(), recovery);
+
+        Assert.Contains("WHOOP recovery was 28%", prompt);
+        Assert.Contains("HRV 38 ms", prompt);
+        Assert.Contains("resting heart rate 56 bpm", prompt);
+    }
+
+    [Fact]
+    public void BuildPrompt_WithoutRecovery_SaysNothingAboutWhoop()
+    {
+        var activity = new Activity
+        {
+            UserId = "user-1",
+            StravaActivityId = "1",
+            Name = "Sunday Spin",
+            StreamDataJson = "[]"
+        };
+
+        var prompt = ActivityAnalysisService.BuildPrompt(activity, Array.Empty<RaceResult>());
+
+        Assert.DoesNotContain("WHOOP", prompt);
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_UsesTheRecoveryOfTheDayTheRideStarted()
+    {
+        var activityRepository = new FakeActivityRepository();
+        var recoveryRepository = new FakeRecoveryDayRepository();
+        var claudeClient = new FakeClaudeClient();
+        var service = new ActivityAnalysisService(
+            activityRepository, new FakeAnalysisReportRepository(), claudeClient, new FakeRaceResultRepository(),
+            recoveryRepository, NullLogger<ActivityAnalysisService>.Instance);
+
+        var activity = await activityRepository.AddAsync(new Activity
+        {
+            UserId = "user-1",
+            StravaActivityId = "1",
+            Name = "Evening ride",
+            StartedAt = new DateTime(2026, 9, 10, 18, 30, 0, DateTimeKind.Utc),
+            StreamDataJson = "[]"
+        });
+        await recoveryRepository.UpsertAsync(new RecoveryDay
+        {
+            UserId = "user-1", Date = new DateOnly(2026, 9, 9), RecoveryScore = 90, HrvMs = 80, RestingHeartRate = 45, ProviderRecordId = "a"
+        });
+        await recoveryRepository.UpsertAsync(new RecoveryDay
+        {
+            UserId = "user-1", Date = new DateOnly(2026, 9, 10), RecoveryScore = 41, HrvMs = 50, RestingHeartRate = 52, ProviderRecordId = "b"
+        });
+
+        await service.AnalyzeAsync(activity.Id, "user-1");
+
+        Assert.Contains("WHOOP recovery was 41%", claudeClient.LastPromptReceived);
+        Assert.DoesNotContain("90%", claudeClient.LastPromptReceived);
     }
 }

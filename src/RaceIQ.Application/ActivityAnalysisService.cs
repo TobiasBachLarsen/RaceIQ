@@ -14,6 +14,7 @@ public class ActivityAnalysisService : IActivityAnalysisService
     private readonly IAnalysisReportRepository _reportRepository;
     private readonly IClaudeClient _claudeClient;
     private readonly IRaceResultRepository _raceResultRepository;
+    private readonly IRecoveryDayRepository _recoveryDayRepository;
     private readonly ILogger<ActivityAnalysisService> _logger;
 
     public ActivityAnalysisService(
@@ -21,16 +22,19 @@ public class ActivityAnalysisService : IActivityAnalysisService
         IAnalysisReportRepository reportRepository,
         IClaudeClient claudeClient,
         IRaceResultRepository raceResultRepository,
+        IRecoveryDayRepository recoveryDayRepository,
         ILogger<ActivityAnalysisService> logger)
     {
         _activityRepository = activityRepository;
         _reportRepository = reportRepository;
         _claudeClient = claudeClient;
         _raceResultRepository = raceResultRepository;
+        _recoveryDayRepository = recoveryDayRepository;
         _logger = logger;
     }
 
-    public static string BuildPrompt(Activity activity, IReadOnlyList<RaceResult> raceResults)
+    public static string BuildPrompt(
+        Activity activity, IReadOnlyList<RaceResult> raceResults, RecoveryDay? recovery = null)
     {
         var stream = JsonSerializer.Deserialize<List<StreamPoint>>(activity.StreamDataJson)
             ?? new List<StreamPoint>();
@@ -105,6 +109,19 @@ public class ActivityAnalysisService : IActivityAnalysisService
                 "well before the ride ends. If you are not confident the pattern is a genuine problem, " +
                 "say so plainly instead of inventing pacing advice.");
         }
+        if (recovery is not null)
+        {
+            sb.AppendLine();
+            sb.AppendLine(
+                $"That morning the rider's WHOOP recovery was {recovery.RecoveryScore}% " +
+                $"(HRV {recovery.HrvMs.ToString("F0", CultureInfo.InvariantCulture)} ms, " +
+                $"resting heart rate {recovery.RestingHeartRate} bpm). " +
+                "A low recovery (under 34%) means the body was already under strain before the ride, so " +
+                "a fade or lower-than-usual power may reflect that rather than a pacing mistake; a high " +
+                "recovery (67% or more) means the rider started fresh. Use it as context for what you " +
+                "see in the numbers, not as an explanation for everything.");
+        }
+
         sb.AppendLine();
         sb.AppendLine("Explain in plain language what you found. Be specific and reference the " +
             "numbers above. Keep it under 300 words. Write your entire response in Danish.");
@@ -118,7 +135,8 @@ public class ActivityAnalysisService : IActivityAnalysisService
             ?? throw new ActivityNotFoundException(activityId);
 
         var raceResults = await _raceResultRepository.GetForActivityAsync(activity.Id);
-        var prompt = BuildPrompt(activity, raceResults);
+        var recovery = await _recoveryDayRepository.GetForDateAsync(userId, DateOnly.FromDateTime(activity.StartedAt));
+        var prompt = BuildPrompt(activity, raceResults, recovery);
 
         string reportText;
         try
