@@ -4,5 +4,6 @@ public enum ConnectedAccountProvider
 {
     Strava,
     ZwiftPower,
-    ZwiftRacing
+    ZwiftRacing,
+    Whoop
 }
