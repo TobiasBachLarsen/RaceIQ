@@ -21,6 +21,7 @@ public class RaceIQDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<AnalysisReport> AnalysisReports => Set<AnalysisReport>();
     public DbSet<ConnectedAccount> ConnectedAccounts => Set<ConnectedAccount>();
     public DbSet<RaceResult> RaceResults => Set<RaceResult>();
+    public DbSet<RecoveryDay> RecoveryDays => Set<RecoveryDay>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -69,6 +70,17 @@ public class RaceIQDbContext : IdentityDbContext<ApplicationUser>
 
         builder.Entity<ConnectedAccount>()
             .HasIndex(a => new { a.UserId, a.Provider })
+            .IsUnique();
+
+        builder.Entity<RecoveryDay>()
+            .HasOne<ApplicationUser>()
+            .WithMany()
+            .HasForeignKey(d => d.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // One recovery reading per user per day - the upsert key.
+        builder.Entity<RecoveryDay>()
+            .HasIndex(d => new { d.UserId, d.Date })
             .IsUnique();
 
         // Encrypt the provider secrets at rest: the Strava access/refresh tokens, the

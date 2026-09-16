@@ -53,6 +53,8 @@ builder.Services.AddScoped<RaceResultImporter>();
 builder.Services.AddHttpClient<IZwiftRacingApiClient, ZwiftRacingApiClient>();
 builder.Services.AddProviderSync<ZwiftRacingSyncService>();
 
+builder.Services.AddScoped<IRecoveryDayRepository, EfRecoveryDayRepository>();
+
 builder.Services.AddScoped<SyncCoordinator>();
 
 var anthropicApiKey = builder.Configuration["Anthropic:ApiKey"];
