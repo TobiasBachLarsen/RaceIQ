@@ -13,14 +13,16 @@ public class ZwiftPowerResultParserTests
         // while "time_gun" is the scalar finish time, and event_title may have leading
         // whitespace. Personal fields (name, HR, power) are omitted - only what the
         // parser reads is kept.
+        // pos 21 is the rider's place in the whole mixed-category field; position_in_cat 1
+        // is their place in category B, which is what the app should show.
         var results = ZwiftPowerResultParser.Parse(
-            """{"data":[{"zid":"5233969","event_title":" Crit Race","event_date":1756742400,"category":"B","pos":4,"time":[2705.5,0],"time_gun":2705.5,"f_t":"TYPE_RACE TYPE_RACE ","skill_gain":"28.29"}]}""");
+            """{"data":[{"zid":"5233969","event_title":" Crit Race","event_date":1756742400,"category":"B","pos":21,"position_in_cat":1,"display_pos":1,"time":[2705.5,0],"time_gun":2705.5,"f_t":"TYPE_RACE TYPE_RACE ","skill_gain":"28.29"}]}""");
 
         Assert.Single(results);
         Assert.Equal("5233969", results[0].RaceId);
         Assert.Equal("Crit Race", results[0].EventName);      // trimmed
         Assert.Equal("B", results[0].Category);
-        Assert.Equal(4, results[0].Position);
+        Assert.Equal(1, results[0].Position);
         Assert.Equal(TimeSpan.FromSeconds(2705.5), results[0].Duration);
         Assert.Equal(28.29, results[0].RatingChange);         // skill_gain sent as a string
     }
@@ -42,6 +44,8 @@ public class ZwiftPowerResultParserTests
             """);
 
         Assert.Equal(new[] { "1", "4" }, results.Select(r => r.RaceId));
+        // Without position_in_cat the overall pos is used as a fallback.
+        Assert.Equal(10, results[0].Position);
         // skill_gain parses whether sent as a string ("12.5") or a bare number (0).
         Assert.Equal(12.5, results[0].RatingChange);
         Assert.Equal(0.0, results[1].RatingChange);

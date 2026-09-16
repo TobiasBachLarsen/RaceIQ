@@ -63,7 +63,11 @@ public static class ZwiftPowerResultParser
                     eventName,
                     eventDate,
                     r.Category,
-                    r.Position,
+                    // pos is the finishing position across the whole event, which for a
+                    // mixed-category race counts every rider in A-E. position_in_cat is the
+                    // rider's placing within their own category, which is the one a rider
+                    // means by "I won" - prefer it, fall back to the overall position.
+                    r.PositionInCategory ?? r.Position,
                     r.GunTime.HasValue ? TimeSpan.FromSeconds(r.GunTime.Value) : null,
                     r.SkillGain);
             }).ToList();
@@ -75,7 +79,8 @@ public static class ZwiftPowerResultParser
     // Field names confirmed against a real ZwiftPower account's
     // /cache3/profile/{id}_all.json response: zid (per-event result id, string),
     // event_title (race name), event_date (unix seconds), category (A-E/DQ letter),
-    // pos (overall finishing position), time_gun (finish time in seconds, a scalar -
+    // pos (finishing position across the whole event), position_in_cat (placing within
+    // the rider's category), time_gun (finish time in seconds, a scalar -
     // the sibling "time" field is a [seconds, flag] array, not used here), f_t (entry
     // type, used above to keep only races), and skill_gain (ZwiftPower ranking points
     // gained/lost in the race - sometimes a string like "28.29", sometimes a bare 0).
@@ -85,6 +90,7 @@ public static class ZwiftPowerResultParser
         [property: JsonPropertyName("event_date")] long EventDate,
         [property: JsonPropertyName("category")] string? Category,
         [property: JsonPropertyName("pos")] int? Position,
+        [property: JsonPropertyName("position_in_cat")] int? PositionInCategory,
         [property: JsonPropertyName("time_gun")] double? GunTime,
         [property: JsonPropertyName("f_t")] string? RaceType,
         [property: JsonPropertyName("skill_gain")]
