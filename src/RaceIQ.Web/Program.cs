@@ -10,6 +10,7 @@ using RaceIQ.Infrastructure.Claude;
 using RaceIQ.Infrastructure.Strava;
 using RaceIQ.Infrastructure.ZwiftPower;
 using RaceIQ.Infrastructure.ZwiftRacing;
+using RaceIQ.Infrastructure.Whoop;
 using RaceIQ.Application;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -53,6 +54,10 @@ builder.Services.AddScoped<RaceResultImporter>();
 builder.Services.AddHttpClient<IZwiftRacingApiClient, ZwiftRacingApiClient>();
 builder.Services.AddProviderSync<ZwiftRacingSyncService>();
 
+builder.Services.Configure<WhoopOAuthOptions>(builder.Configuration.GetSection("Whoop"));
+builder.Services.AddHttpClient<IWhoopOAuthService, WhoopOAuthService>();
+builder.Services.AddHttpClient<IWhoopApiClient, WhoopApiClient>();
+builder.Services.AddProviderSync<WhoopSyncService>();
 builder.Services.AddScoped<IRecoveryDayRepository, EfRecoveryDayRepository>();
 
 builder.Services.AddScoped<SyncCoordinator>();
@@ -117,6 +122,7 @@ app.MapAdditionalIdentityEndpoints();
 
 app.MapStravaAuthEndpoints();
 app.MapZwiftAuthEndpoints();
+app.MapWhoopAuthEndpoints();
 
 app.Run();
 
