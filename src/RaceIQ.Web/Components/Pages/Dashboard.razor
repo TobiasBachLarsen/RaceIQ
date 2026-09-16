@@ -49,16 +49,19 @@ else if (_connectedAccount.Status == ConnectedAccountStatus.NeedsReconnect)
     Account="_zwiftPowerAccount"
     ActionUrl="/zwiftpower/connect"
     PrimaryFieldName="sessionCookie"
-    PrimaryFieldPlaceholder="Session-cookie"
+    PrimaryFieldPlaceholder="Hele Cookie-headeren"
     ConnectButtonText="Forbind ZwiftPower"
     ReconnectBadgeText="ZwiftPower skal genoprettes"
-    ReconnectMessage="Cookien er sandsynligvis udløbet. Gentag forbindelsen nedenfor med en frisk cookie.">
+    ReconnectMessage="Cookien er udløbet eller mangler CloudFront-cookies. Kopiér hele Cookie-headeren igen som beskrevet nedenfor og forbind på ny.">
     <Instructions>
         <p>
             Forbind ZwiftPower for at få dine løbsresultater vist. Log ind på
-            <a href="https://zwiftpower.com" target="_blank" rel="noopener">zwiftpower.com</a>,
-            åbn browserens udviklerværktøjer (Application/Storage → Cookies), kopiér din
-            session-cookie, og find dit Zwift-rytter-id på din profilside (tallet i URL'en).
+            <a href="https://zwiftpower.com" target="_blank" rel="noopener">zwiftpower.com</a>
+            og åbn din profilside. Åbn browserens udviklerværktøjer, fanen Network, genindlæs
+            siden, og klik på requesten der hedder <code>&lt;dit-id&gt;_all.json</code>. Under
+            Request Headers kopierer du hele værdien af <code>Cookie</code> (den indeholder
+            både din login-cookie og de tre CloudFront-cookies, som ZwiftPower kræver). Dit
+            Zwift-rytter-id er tallet i profilsidens URL.
         </p>
     </Instructions>
 </ProviderConnectionCard>
