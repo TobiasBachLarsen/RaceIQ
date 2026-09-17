@@ -78,4 +78,28 @@ public class ZwiftPowerResultParserTests
     {
         Assert.Throws<ZwiftPowerImportException>(() => ZwiftPowerResultParser.Parse(pasted));
     }
+
+    [Fact]
+    public void Parse_ToleratesNullRowsAndNumbersWrittenAsStrings()
+    {
+        // ZwiftPower is loose with types (skill_gain is documented as sometimes a string),
+        // so the parser must accept a number written as "1" anywhere, and a null element
+        // in the list must simply be skipped rather than crash the import.
+        var results = ZwiftPowerResultParser.Parse(
+            """{"data":[null,{"zid":"7","event_title":"Race","event_date":"1756742400","category":"B","pos":"21","position_in_cat":"1","time_gun":"2705.5","f_t":"TYPE_RACE"}]}""");
+
+        Assert.Single(results);
+        Assert.Equal(1, results[0].Position);
+        Assert.Equal(TimeSpan.FromSeconds(2705.5), results[0].Duration);
+        Assert.Equal(new DateTime(2025, 9, 1, 16, 0, 0, DateTimeKind.Utc), results[0].EventDate);
+    }
+
+    [Fact]
+    public void Parse_RejectsImpossibleEventDateAsImportError()
+    {
+        // Garbage in the paste must come back as the "paste it again" error, never as a
+        // crash page.
+        Assert.Throws<ZwiftPowerImportException>(() => ZwiftPowerResultParser.Parse(
+            """{"data":[{"zid":"1","event_date":99999999999999,"f_t":"TYPE_RACE"}]}"""));
+    }
 }

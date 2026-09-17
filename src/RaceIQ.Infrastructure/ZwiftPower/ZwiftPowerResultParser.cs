@@ -17,12 +17,17 @@ public record ZwiftPowerRaceResult(
 // cookies that only their logged-in browser has, so the app cannot fetch it directly.
 public static class ZwiftPowerResultParser
 {
+    // ZwiftPower is loose with types: several numeric fields arrive as strings ("28.29",
+    // "5"). The Web defaults accept numbers written as strings and ignore property-name
+    // case, matching what HttpClient's ReadFromJsonAsync would have tolerated.
+    private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web);
+
     public static IReadOnlyList<ZwiftPowerRaceResult> Parse(string json)
     {
         ZwiftPowerResponseEnvelope? envelope;
         try
         {
-            envelope = JsonSerializer.Deserialize<ZwiftPowerResponseEnvelope>(json);
+            envelope = JsonSerializer.Deserialize<ZwiftPowerResponseEnvelope>(json, Options);
         }
         catch (JsonException ex)
         {
@@ -35,7 +40,24 @@ public static class ZwiftPowerResultParser
         if (envelope?.Data is null)
             throw new ZwiftPowerImportException("The pasted JSON has no \"data\" list of results.");
 
-        return envelope.Data
+        try
+        {
+            return ParseRows(envelope.Data);
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            // An event_date outside what DateTimeOffset can represent - garbage in, but
+            // still the rider's paste, so answer with the same "paste it again" path.
+            throw new ZwiftPowerImportException("A result in the pasted JSON has an invalid event date.", ex);
+        }
+    }
+
+    private static List<ZwiftPowerRaceResult> ParseRows(List<ZwiftPowerResultPayload?> rows)
+    {
+        return rows
+            // A null element deserialises fine but has no fields to read.
+            .Where(r => r is not null)
+            .Select(r => r!)
             // f_t marks the entry type ("TYPE_RACE", "TYPE_WORKOUT", "TYPE_RIDE"); only
             // real races belong in the race-result list. A disqualified race is still a
             // race (f_t stays TYPE_RACE, category becomes "DQ"), so filter on f_t alone.
@@ -74,7 +96,7 @@ public static class ZwiftPowerResultParser
     }
 
     private record ZwiftPowerResponseEnvelope(
-        [property: JsonPropertyName("data")] List<ZwiftPowerResultPayload>? Data);
+        [property: JsonPropertyName("data")] List<ZwiftPowerResultPayload?>? Data);
 
     // Field names confirmed against a real ZwiftPower account's
     // /cache3/profile/{id}_all.json response: zid (per-event result id, string),
