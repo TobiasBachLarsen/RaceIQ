@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using RaceIQ.Application;
-using RaceIQ.Application.Exceptions;
 using RaceIQ.Domain;
 
 namespace RaceIQ.Infrastructure.Strava;
@@ -32,10 +31,8 @@ public class StravaSyncService : IProviderSyncService
 
     public async Task SyncAsync(string userId)
     {
-        var account = await _accountRepository.GetAsync(userId, ConnectedAccountProvider.Strava)
-            ?? throw new ConnectedAccountNotFoundException(userId);
-
-        if (account.Status == ConnectedAccountStatus.NeedsReconnect)
+        var account = await _accountRepository.GetAsync(userId, ConnectedAccountProvider.Strava);
+        if (account is null || account.Status == ConnectedAccountStatus.NeedsReconnect)
             return;
 
         var accessToken = await EnsureFreshTokenAsync(account);

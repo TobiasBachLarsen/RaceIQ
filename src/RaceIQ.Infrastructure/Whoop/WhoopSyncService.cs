@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using RaceIQ.Application;
-using RaceIQ.Application.Exceptions;
 using RaceIQ.Domain;
 
 namespace RaceIQ.Infrastructure.Whoop;
@@ -35,10 +34,8 @@ public class WhoopSyncService : IProviderSyncService
 
     public async Task SyncAsync(string userId)
     {
-        var account = await _accountRepository.GetAsync(userId, ConnectedAccountProvider.Whoop)
-            ?? throw new ConnectedAccountNotFoundException(userId);
-
-        if (account.Status == ConnectedAccountStatus.NeedsReconnect)
+        var account = await _accountRepository.GetAsync(userId, ConnectedAccountProvider.Whoop);
+        if (account is null || account.Status == ConnectedAccountStatus.NeedsReconnect)
             return;
 
         var accessToken = await EnsureFreshTokenAsync(account);

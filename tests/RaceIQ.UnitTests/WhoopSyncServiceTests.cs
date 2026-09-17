@@ -111,4 +111,19 @@ public class WhoopSyncServiceTests
         Assert.Equal(0, oauth.RefreshCallCount);
         Assert.Null(api.LastAccessTokenUsed);
     }
+
+    [Fact]
+    public async Task SyncAsync_NoAccount_ReturnsQuietly()
+    {
+        // The coordinator only calls providers with an account, but any other caller
+        // gets the same quiet no-op rather than an exception.
+        var api = new FakeWhoopApiClient();
+        var service = new WhoopSyncService(
+            api, new FakeWhoopOAuthService(_ => Token("unused")), new FakeRecoveryDayRepository(),
+            new FakeConnectedAccountRepository(), NullLogger<WhoopSyncService>.Instance);
+
+        await service.SyncAsync("nobody");
+
+        Assert.Null(api.LastAccessTokenUsed);
+    }
 }

@@ -2,7 +2,6 @@
 @rendermode InteractiveServer
 @attribute [Authorize]
 @using Microsoft.AspNetCore.Authorization
-@using System.Security.Claims
 @using RaceIQ.Application
 @using RaceIQ.Domain
 @inject IActivityRepository ActivityRepository
@@ -131,7 +130,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         var state = await AuthState!;
-        _userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        _userId = state.User.GetRequiredUserId("Activity detail");
 
         _activity = await ActivityRepository.GetByIdAsync(ActivityId, _userId);
         if (_activity is not null)
