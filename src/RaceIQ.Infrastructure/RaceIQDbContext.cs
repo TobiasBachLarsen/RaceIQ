@@ -28,6 +28,7 @@ public class RaceIQDbContext : IdentityDbContext<ApplicationUser>
         base.OnModelCreating(builder);
 
         builder.Entity<Activity>().Ignore(a => a.IsRace);
+        builder.Entity<RecoveryDay>().Ignore(d => d.Band);
 
         builder.Entity<RaceResult>()
             .HasIndex(r => new { r.UserId, r.Provider, r.ProviderResultId })
@@ -83,17 +84,25 @@ public class RaceIQDbContext : IdentityDbContext<ApplicationUser>
             .HasIndex(d => new { d.UserId, d.Date })
             .IsUnique();
 
-        // Encrypt the provider secrets at rest: the Strava access/refresh tokens, the
-        // ZwiftPower session cookie, and the ZwiftRacing API key all live in these two
-        // columns. ExternalAccountId (the public Zwift rider id) is not a secret and stays
-        // in clear text. The column type is unchanged (text), so this needs no migration.
+        // Encrypt the provider secrets at rest: the Strava and WHOOP access/refresh tokens
+        // and the ZwiftRacing API key live in these two columns (ZwiftPower stores no
+        // credential any more, only the public rider id). ExternalAccountId is not a secret
+        // and stays in clear text. The column type is unchanged (text), so this needs no
+        // migration.
+        //
+        // EF Core builds this model once per context type and caches it, so anything the
+        // converter lambdas capture lives for the whole process. Capture the protector
+        // itself (a stateless object), not `this` - otherwise the first DbContext instance
+        // would be kept alive forever by the model cache.
+        var protector = _credentialProtector;
+
         var requiredConverter = new ValueConverter<string, string>(
-            plaintext => _credentialProtector.Protect(plaintext),
-            stored => Unprotect(stored));
+            plaintext => protector.Protect(plaintext),
+            stored => Unprotect(protector, stored));
 
         var optionalConverter = new ValueConverter<string?, string?>(
-            plaintext => plaintext == null ? null : _credentialProtector.Protect(plaintext),
-            stored => stored == null ? null : Unprotect(stored));
+            plaintext => plaintext == null ? null : protector.Protect(plaintext),
+            stored => stored == null ? null : Unprotect(protector, stored));
 
         builder.Entity<ConnectedAccount>()
             .Property(a => a.AccessToken)
@@ -107,11 +116,11 @@ public class RaceIQDbContext : IdentityDbContext<ApplicationUser>
     // Tolerates rows written before encryption was enabled (or with a since-rotated key):
     // an undecryptable value is returned as-is, so a stale credential surfaces as a normal
     // auth failure that flips the account to NeedsReconnect rather than crashing every read.
-    private string Unprotect(string stored)
+    private static string Unprotect(IDataProtector protector, string stored)
     {
         try
         {
-            return _credentialProtector.Unprotect(stored);
+            return protector.Unprotect(stored);
         }
         catch (CryptographicException)
         {

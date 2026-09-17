@@ -73,4 +73,50 @@ public class StravaCallbackTests : IClassFixture<RaceIQApiFactory>
         var account = await accountRepository.GetAsync(victimUserId, ConnectedAccountProvider.Strava);
         Assert.Null(account);
     }
+
+    [Fact]
+    public async Task Callback_UserDeclined_RedirectsHomeWithoutStoringAnything()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = new ApplicationUser { UserName = "declined-strava@example.com", Email = "declined-strava@example.com" };
+        await userManager.CreateAsync(user, "P@ssw0rd!");
+
+        var dataProtection = scope.ServiceProvider.GetRequiredService<IDataProtectionProvider>();
+        var state = dataProtection.CreateProtector(ProtectorPurpose).ToTimeLimitedDataProtector().Protect(user.Id, StateLifetime);
+        var client = _factory.CreateClient(new() { AllowAutoRedirect = false });
+
+        // Strava's "Cancel" sends the user back with an error and no code.
+        var response = await client.GetAsync($"/strava/callback?error=access_denied&state={Uri.EscapeDataString(state)}");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/dashboard", response.Headers.Location!.ToString());
+        var accountRepository = scope.ServiceProvider.GetRequiredService<IConnectedAccountRepository>();
+        Assert.Null(await accountRepository.GetAsync(user.Id, ConnectedAccountProvider.Strava));
+    }
+
+    [Fact]
+    public async Task Callback_WhenStravaRejectsTheCode_RedirectsHomeWithFailureFlag()
+    {
+        // A reused or expired code makes Strava answer 400; that must land on the
+        // dashboard with a message, not on the error page.
+        _factory.StravaOAuthResponder = _ => FakeHttpMessageHandler.JsonResponse(
+            HttpStatusCode.BadRequest, """{"message":"Bad Request","errors":[{"resource":"AuthorizationCode","field":"code","code":"invalid"}]}""");
+
+        using var scope = _factory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = new ApplicationUser { UserName = "badcode@example.com", Email = "badcode@example.com" };
+        await userManager.CreateAsync(user, "P@ssw0rd!");
+
+        var dataProtection = scope.ServiceProvider.GetRequiredService<IDataProtectionProvider>();
+        var state = dataProtection.CreateProtector(ProtectorPurpose).ToTimeLimitedDataProtector().Protect(user.Id, StateLifetime);
+        var client = _factory.CreateClient(new() { AllowAutoRedirect = false });
+
+        var response = await client.GetAsync($"/strava/callback?code=stale&state={Uri.EscapeDataString(state)}");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/dashboard?connect=strava-failed", response.Headers.Location!.ToString());
+        var accountRepository = scope.ServiceProvider.GetRequiredService<IConnectedAccountRepository>();
+        Assert.Null(await accountRepository.GetAsync(user.Id, ConnectedAccountProvider.Strava));
+    }
 }

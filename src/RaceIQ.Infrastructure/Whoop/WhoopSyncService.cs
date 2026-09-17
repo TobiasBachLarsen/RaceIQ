@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using RaceIQ.Application;
-using RaceIQ.Application.Exceptions;
 using RaceIQ.Domain;
 
 namespace RaceIQ.Infrastructure.Whoop;
@@ -15,6 +14,7 @@ public class WhoopSyncService : IProviderSyncService
     private readonly IWhoopOAuthService _oauthService;
     private readonly IRecoveryDayRepository _recoveryRepository;
     private readonly IConnectedAccountRepository _accountRepository;
+    private readonly ConnectedAccountTokenRefresher _tokenRefresher;
     private readonly ILogger<WhoopSyncService> _logger;
 
     public ConnectedAccountProvider Provider => ConnectedAccountProvider.Whoop;
@@ -24,24 +24,33 @@ public class WhoopSyncService : IProviderSyncService
         IWhoopOAuthService oauthService,
         IRecoveryDayRepository recoveryRepository,
         IConnectedAccountRepository accountRepository,
+        ConnectedAccountTokenRefresher tokenRefresher,
         ILogger<WhoopSyncService> logger)
     {
         _apiClient = apiClient;
         _oauthService = oauthService;
         _recoveryRepository = recoveryRepository;
         _accountRepository = accountRepository;
+        _tokenRefresher = tokenRefresher;
         _logger = logger;
     }
 
     public async Task SyncAsync(string userId)
     {
-        var account = await _accountRepository.GetAsync(userId, ConnectedAccountProvider.Whoop)
-            ?? throw new ConnectedAccountNotFoundException(userId);
-
-        if (account.Status == ConnectedAccountStatus.NeedsReconnect)
+        var account = await _accountRepository.GetAsync(userId, ConnectedAccountProvider.Whoop);
+        if (account is null || account.Status == ConnectedAccountStatus.NeedsReconnect)
             return;
 
-        var accessToken = await EnsureFreshTokenAsync(account);
+        // WHOOP access tokens live one hour and expiry is reported as a relative expires_in,
+        // so nearly every sync refreshes.
+        var accessToken = await _tokenRefresher.EnsureFreshAsync(account, async refreshToken =>
+        {
+            var token = await _oauthService.RefreshTokenAsync(refreshToken);
+            return new RefreshedToken(
+                token.AccessToken,
+                token.RefreshToken,
+                DateTime.UtcNow.AddSeconds(token.ExpiresInSeconds));
+        });
 
         var since = DateTime.UtcNow.AddDays(-SyncWindowDays);
         var recoveries = await _apiClient.GetRecoveriesAsync(accessToken, since);
@@ -61,35 +70,5 @@ public class WhoopSyncService : IProviderSyncService
 
         _logger.LogInformation(
             "WHOOP sync stored {Count} recovery days for user {UserId}", recoveries.Count, userId);
-    }
-
-    // WHOOP access tokens live one hour, so nearly every sync refreshes. On a failed
-    // refresh the account flips to NeedsReconnect and the error propagates, exactly as
-    // for Strava, so the dashboard shows a reconnect card rather than a silent no-op.
-    private async Task<string> EnsureFreshTokenAsync(ConnectedAccount account)
-    {
-        if (account.TokenExpiresAt is { } expiresAt && expiresAt > DateTime.UtcNow.AddMinutes(5))
-            return account.AccessToken;
-
-        WhoopTokenResponse refreshed;
-        try
-        {
-            refreshed = await _oauthService.RefreshTokenAsync(account.RefreshToken!);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex,
-                "WHOOP token refresh failed for user {UserId}; flipping account to NeedsReconnect", account.UserId);
-            account.Status = ConnectedAccountStatus.NeedsReconnect;
-            await _accountRepository.UpsertAsync(account);
-            throw;
-        }
-
-        account.AccessToken = refreshed.AccessToken;
-        account.RefreshToken = refreshed.RefreshToken;
-        account.TokenExpiresAt = DateTime.UtcNow.AddSeconds(refreshed.ExpiresInSeconds);
-        await _accountRepository.UpsertAsync(account);
-
-        return account.AccessToken;
     }
 }

@@ -3,7 +3,6 @@
 @rendermode InteractiveServer
 @attribute [Authorize]
 @using Microsoft.AspNetCore.Authorization
-@using System.Security.Claims
 @using RaceIQ.Application
 @using RaceIQ.Domain
 @inject IConnectedAccountRepository ConnectedAccountRepository
@@ -30,21 +29,13 @@
     <OverviewPanel Stats="_stats" LatestRecovery="_latestRecovery" />
 }
 
-@if (_connectedAccount is null)
-{
-    <div class="card empty-state">
-        <p>Forbind din Strava-konto for at hente dine ture.</p>
-        <a href="/strava/connect" class="btn btn-primary">Forbind Strava</a>
-    </div>
-}
-else if (_connectedAccount.Status == ConnectedAccountStatus.NeedsReconnect)
-{
-    <div class="card empty-state">
-        <span class="status-badge status-badge--warning">Skal genoprettes</span>
-        <p>Din Strava-forbindelse skal opdateres, før du kan synkronisere igen.</p>
-        <a href="/strava/connect" class="btn btn-primary">Genopret forbindelse</a>
-    </div>
-}
+<OAuthConnectionCard
+    Account="_connectedAccount"
+    ConnectUrl="/strava/connect"
+    ConnectPrompt="Forbind din Strava-konto for at hente dine ture."
+    ConnectButtonText="Forbind Strava"
+    ReconnectBadgeText="Skal genoprettes"
+    ReconnectMessage="Din Strava-forbindelse skal opdateres, før du kan synkronisere igen." />
 
 <ZwiftPowerImportCard InitialRiderId="@_zwiftPowerAccount?.ExternalAccountId" />
 
@@ -69,20 +60,17 @@ else if (_connectedAccount.Status == ConnectedAccountStatus.NeedsReconnect)
     </Instructions>
 </ProviderConnectionCard>
 
-@if (_whoopAccount is null)
+<OAuthConnectionCard
+    Account="_whoopAccount"
+    ConnectUrl="/whoop/connect"
+    ConnectPrompt="Forbind WHOOP for at se din daglige restitution (recovery, HRV og hvilepuls) sammen med dine ture."
+    ConnectButtonText="Forbind WHOOP"
+    ReconnectBadgeText="WHOOP skal genoprettes"
+    ReconnectMessage="Din WHOOP-forbindelse skal opdateres, før restitution kan synkroniseres igen." />
+
+@if (_connectError is not null)
 {
-    <div class="card empty-state">
-        <p>Forbind WHOOP for at se din daglige restitution (recovery, HRV og hvilepuls) sammen med dine ture.</p>
-        <a href="/whoop/connect" class="btn btn-primary">Forbind WHOOP</a>
-    </div>
-}
-else if (_whoopAccount.Status == ConnectedAccountStatus.NeedsReconnect)
-{
-    <div class="card empty-state">
-        <span class="status-badge status-badge--warning">WHOOP skal genoprettes</span>
-        <p>Din WHOOP-forbindelse skal opdateres, før restitution kan synkroniseres igen.</p>
-        <a href="/whoop/connect" class="btn btn-primary">Genopret forbindelse</a>
-    </div>
+    <div class="alert alert-danger">@_connectError</div>
 }
 
 @if (_syncError is not null)
@@ -118,6 +106,7 @@ else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
     private string? _syncError;
     private string? _zwiftPowerMessage;
     private bool _zwiftPowerImportFailed;
+    private string? _connectError;
     private string _userId = string.Empty;
 
     // ZwiftPower is a manual paste-import, not a synced provider, so it doesn't count here.
@@ -129,15 +118,28 @@ else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
     protected override async Task OnInitializedAsync()
     {
         _userId = await GetUserIdAsync();
-        ReadZwiftPowerImportOutcome();
+        ReadRedirectOutcomes();
         await LoadStateAsync();
     }
 
-    // The ZwiftPower import is a plain form post that redirects back here with its
-    // outcome in the query string ("12-9" = imported-matched, or "error").
-    private void ReadZwiftPowerImportOutcome()
+    // The ZwiftPower import and the OAuth callbacks are plain HTTP round-trips that
+    // redirect back here with their outcome in the query string: "zwiftpower=12-9"
+    // (imported-matched) or "zwiftpower=error", and "connect=strava-failed" /
+    // "connect=whoop-failed" when a code exchange did not go through.
+    private void ReadRedirectOutcomes()
     {
         var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(Navigation.Uri).Query);
+
+        if (query.TryGetValue("connect", out var connect))
+        {
+            _connectError = connect.ToString() switch
+            {
+                "strava-failed" => "Forbindelsen til Strava kunne ikke gennemføres. Prøv igen.",
+                "whoop-failed" => "Forbindelsen til WHOOP kunne ikke gennemføres. Prøv igen.",
+                _ => null
+            };
+        }
+
         if (!query.TryGetValue("zwiftpower", out var value))
             return;
 
@@ -157,7 +159,7 @@ else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
     private async Task<string> GetUserIdAsync()
     {
         var state = await AuthState!;
-        return state.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        return state.User.GetRequiredUserId("Dashboard");
     }
 
     // The full dashboard state: the four provider accounts plus activities, their

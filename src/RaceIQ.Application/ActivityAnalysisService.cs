@@ -116,9 +116,9 @@ public class ActivityAnalysisService : IActivityAnalysisService
                 $"That morning the rider's WHOOP recovery was {recovery.RecoveryScore}% " +
                 $"(HRV {recovery.HrvMs.ToString("F0", CultureInfo.InvariantCulture)} ms, " +
                 $"resting heart rate {recovery.RestingHeartRate} bpm). " +
-                "A low recovery (under 34%) means the body was already under strain before the ride, so " +
+                $"A low recovery (under {RecoveryDay.MediumThreshold}%) means the body was already under strain before the ride, so " +
                 "a fade or lower-than-usual power may reflect that rather than a pacing mistake; a high " +
-                "recovery (67% or more) means the rider started fresh. Use it as context for what you " +
+                $"recovery ({RecoveryDay.HighThreshold}% or more) means the rider started fresh. Use it as context for what you " +
                 "see in the numbers, not as an explanation for everything.");
         }
 

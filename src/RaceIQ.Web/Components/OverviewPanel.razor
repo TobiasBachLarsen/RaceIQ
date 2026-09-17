@@ -5,76 +5,36 @@
     <section class="overview-section">
         <p class="overview-caption">I alt</p>
         <div class="stat-grid">
-            <div class="stat">
-                <span class="stat-num">@Stats.RideCount</span>
-                <span class="stat-label">Ture</span>
-            </div>
-            <div class="stat">
-                <span class="stat-num">@Stats.TotalDistanceKm.ToString("N0")<span class="stat-unit">km</span></span>
-                <span class="stat-label">Distance</span>
-            </div>
-            <div class="stat">
-                <span class="stat-num">@Hours(Stats.TotalDuration)<span class="stat-unit">t</span></span>
-                <span class="stat-label">Tid på cyklen</span>
-            </div>
-            <div class="stat">
-                <span class="stat-num">@Stats.TotalElevationM.ToString("N0")<span class="stat-unit">m</span></span>
-                <span class="stat-label">Højdemeter</span>
-            </div>
-            <div class="stat">
-                <span class="stat-num">@Stats.RaceCount</span>
-                <span class="stat-label">Løb</span>
-            </div>
-            <div class="stat">
-                <span class="stat-num">@(Stats.BestPosition is { } p ? $"{p}." : "–")</span>
-                <span class="stat-label">Bedste placering</span>
-            </div>
-            <div class="stat">
-                <span class="stat-num @RatingClass(Stats.TotalRatingChange)">@Rating(Stats.TotalRatingChange)</span>
-                <span class="stat-label">Rating i alt</span>
-            </div>
+            <StatTile Value="@Stats.RideCount.ToString()" Label="Ture" />
+            <StatTile Value="@Stats.TotalDistanceKm.ToString("N0")" Unit="km" Label="Distance" />
+            <StatTile Value="@Hours(Stats.TotalDuration)" Unit="t" Label="Tid på cyklen" />
+            <StatTile Value="@Stats.TotalElevationM.ToString("N0")" Unit="m" Label="Højdemeter" />
+            <StatTile Value="@Stats.RaceCount.ToString()" Label="Løb" />
+            <StatTile Value="@(Stats.BestPosition is { } p ? $"{p}." : "–")" Label="Bedste placering" />
+            <StatTile Value="@Rating(Stats.TotalRatingChange)" CssClass="@RatingClass(Stats.TotalRatingChange)" Label="Rating i alt" />
         </div>
     </section>
 
-    <section class="overview-section overview-section--recent">
+    <section class="overview-section">
         <p class="overview-caption">Seneste 30 dage</p>
         <div class="stat-grid">
-            <div class="stat">
-                <span class="stat-num">@Stats.RecentRideCount</span>
-                <span class="stat-label">Ture</span>
-            </div>
-            <div class="stat">
-                <span class="stat-num">@Stats.RecentDistanceKm.ToString("N0")<span class="stat-unit">km</span></span>
-                <span class="stat-label">Distance</span>
-            </div>
-            <div class="stat">
-                <span class="stat-num">@Hours(Stats.RecentDuration)<span class="stat-unit">t</span></span>
-                <span class="stat-label">Tid</span>
-            </div>
-            <div class="stat">
-                <span class="stat-num">@(Stats.RecentAvgPower is { } w ? w.ToString("N0") : "–")<span class="stat-unit">@(Stats.RecentAvgPower is not null ? "W" : "")</span></span>
-                <span class="stat-label">Snit effekt</span>
-            </div>
+            <StatTile Value="@Stats.RecentRideCount.ToString()" CssClass="stat-num--small" Label="Ture" />
+            <StatTile Value="@Stats.RecentDistanceKm.ToString("N0")" Unit="km" CssClass="stat-num--small" Label="Distance" />
+            <StatTile Value="@Hours(Stats.RecentDuration)" Unit="t" CssClass="stat-num--small" Label="Tid" />
+            <StatTile Value="@(Stats.RecentAvgPower is { } w ? w.ToString("N0") : "–")"
+                      Unit="@(Stats.RecentAvgPower is not null ? "W" : null)"
+                      CssClass="stat-num--small" Label="Snit effekt" />
         </div>
     </section>
 
     @if (LatestRecovery is { } recovery)
     {
-        <section class="overview-section overview-section--recent">
+        <section class="overview-section">
             <p class="overview-caption">Restitution · WHOOP · @recovery.Date.ToString("d. MMM")</p>
             <div class="stat-grid">
-                <div class="stat">
-                    <span class="stat-num @RecoveryClass(recovery.RecoveryScore)">@recovery.RecoveryScore<span class="stat-unit">%</span></span>
-                    <span class="stat-label">Recovery</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-num">@recovery.HrvMs.ToString("N0")<span class="stat-unit">ms</span></span>
-                    <span class="stat-label">HRV</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-num">@recovery.RestingHeartRate<span class="stat-unit">bpm</span></span>
-                    <span class="stat-label">Hvilepuls</span>
-                </div>
+                <StatTile Value="@recovery.RecoveryScore.ToString()" Unit="%" CssClass="@($"stat-num--small {BandClass(recovery.Band)}")" Label="Recovery" />
+                <StatTile Value="@recovery.HrvMs.ToString("N0")" Unit="ms" CssClass="stat-num--small" Label="HRV" />
+                <StatTile Value="@recovery.RestingHeartRate.ToString()" Unit="bpm" CssClass="stat-num--small" Label="Hvilepuls" />
             </div>
         </section>
     }
@@ -88,10 +48,6 @@
     [Parameter]
     public RecoveryDay? LatestRecovery { get; set; }
 
-    // WHOOP's own bands: green from 67 %, yellow from 34 %, red below.
-    private static string RecoveryClass(int score) =>
-        score >= 67 ? "stat-num--up" : score >= 34 ? "stat-num--mid" : "stat-num--down";
-
     private static string Hours(TimeSpan span)
     {
         var hours = span.TotalHours;
@@ -103,4 +59,11 @@
 
     private static string RatingClass(double? change) =>
         change is not { } c ? "" : c >= 0 ? "stat-num--up" : "stat-num--down";
+
+    private static string BandClass(RecoveryBand band) => band switch
+    {
+        RecoveryBand.High => "stat-num--up",
+        RecoveryBand.Medium => "stat-num--mid",
+        _ => "stat-num--down"
+    };
 }

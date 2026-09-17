@@ -1,0 +1,40 @@
+@using RaceIQ.Domain
+
+@* Connect / reconnect card for an OAuth provider (Strava, WHOOP): a prompt and a button
+   that starts the provider's login flow. Renders nothing while the account is connected. *@
+
+@if (Account is null)
+{
+    <div class="card empty-state">
+        <p>@ConnectPrompt</p>
+        <a href="@ConnectUrl" class="btn btn-primary">@ConnectButtonText</a>
+    </div>
+}
+else if (Account.Status == ConnectedAccountStatus.NeedsReconnect)
+{
+    <div class="card empty-state">
+        <span class="status-badge status-badge--warning">@ReconnectBadgeText</span>
+        <p>@ReconnectMessage</p>
+        <a href="@ConnectUrl" class="btn btn-primary">Genopret forbindelse</a>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public ConnectedAccount? Account { get; set; }
+
+    [Parameter, EditorRequired]
+    public string ConnectUrl { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public string ConnectPrompt { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public string ConnectButtonText { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public string ReconnectBadgeText { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public string ReconnectMessage { get; set; } = "";
+}

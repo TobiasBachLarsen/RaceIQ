@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using RaceIQ.Domain;
+using RaceIQ.Infrastructure;
 using RaceIQ.Infrastructure.Strava;
 using RaceIQ.UnitTests.Fakes;
 using Xunit;
@@ -18,8 +19,9 @@ public class StravaSyncServiceTests
         await accounts.UpsertAsync(account);
         var api = new FakeStravaApiClient();
         var oauth = new FakeStravaOAuthService(refresh);
+        var refresher = new ConnectedAccountTokenRefresher(accounts, NullLogger<ConnectedAccountTokenRefresher>.Instance);
         var service = new StravaSyncService(
-            api, oauth, new FakeActivityRepository(), accounts, NullLogger<StravaSyncService>.Instance);
+            api, oauth, new FakeActivityRepository(), accounts, refresher, NullLogger<StravaSyncService>.Instance);
         return (service, accounts, api, oauth);
     }
 

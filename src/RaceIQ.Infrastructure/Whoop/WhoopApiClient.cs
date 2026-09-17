@@ -12,6 +12,10 @@ public class WhoopApiClient : IWhoopApiClient
     // WHOOP caps a recovery page at 25 records.
     private const int PageSize = 25;
 
+    // Same leniency HttpClient's ReadFromJsonAsync would give (numbers as strings,
+    // case-insensitive names); the reference docs and the live API already disagreed once.
+    private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web);
+
     private readonly HttpClient _httpClient;
 
     public WhoopApiClient(HttpClient httpClient)
@@ -73,7 +77,7 @@ public class WhoopApiClient : IWhoopApiClient
         var body = await response.Content.ReadAsStringAsync();
         try
         {
-            return JsonSerializer.Deserialize<T>(body)
+            return JsonSerializer.Deserialize<T>(body, Options)
                 ?? throw new InvalidOperationException($"WHOOP response from {url} was empty.");
         }
         catch (JsonException ex)
