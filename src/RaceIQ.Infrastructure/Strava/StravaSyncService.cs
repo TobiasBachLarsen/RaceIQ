@@ -11,6 +11,7 @@ public class StravaSyncService : IProviderSyncService
     private readonly IStravaOAuthService _oauthService;
     private readonly IActivityRepository _activityRepository;
     private readonly IConnectedAccountRepository _accountRepository;
+    private readonly ConnectedAccountTokenRefresher _tokenRefresher;
     private readonly ILogger<StravaSyncService> _logger;
 
     public ConnectedAccountProvider Provider => ConnectedAccountProvider.Strava;
@@ -20,12 +21,14 @@ public class StravaSyncService : IProviderSyncService
         IStravaOAuthService oauthService,
         IActivityRepository activityRepository,
         IConnectedAccountRepository accountRepository,
+        ConnectedAccountTokenRefresher tokenRefresher,
         ILogger<StravaSyncService> logger)
     {
         _apiClient = apiClient;
         _oauthService = oauthService;
         _activityRepository = activityRepository;
         _accountRepository = accountRepository;
+        _tokenRefresher = tokenRefresher;
         _logger = logger;
     }
 
@@ -35,7 +38,15 @@ public class StravaSyncService : IProviderSyncService
         if (account is null || account.Status == ConnectedAccountStatus.NeedsReconnect)
             return;
 
-        var accessToken = await EnsureFreshTokenAsync(account);
+        // Strava reports expiry as an absolute unix timestamp.
+        var accessToken = await _tokenRefresher.EnsureFreshAsync(account, async refreshToken =>
+        {
+            var token = await _oauthService.RefreshTokenAsync(refreshToken);
+            return new RefreshedToken(
+                token.AccessToken,
+                token.RefreshToken,
+                DateTimeOffset.FromUnixTimeSeconds(token.ExpiresAtUnix).UtcDateTime);
+        });
 
         var summaries = await _apiClient.ListRecentActivitiesAsync(accessToken);
         var importedCount = 0;
@@ -69,32 +80,5 @@ public class StravaSyncService : IProviderSyncService
 
         _logger.LogInformation(
             "Strava sync imported {ImportedCount} new activities for user {UserId}", importedCount, userId);
-    }
-
-    private async Task<string> EnsureFreshTokenAsync(ConnectedAccount account)
-    {
-        if (account.TokenExpiresAt is { } expiresAt && expiresAt > DateTime.UtcNow.AddMinutes(5))
-            return account.AccessToken;
-
-        StravaTokenResponse refreshed;
-        try
-        {
-            refreshed = await _oauthService.RefreshTokenAsync(account.RefreshToken!);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex,
-                "Strava token refresh failed for user {UserId}; flipping account to NeedsReconnect", account.UserId);
-            account.Status = ConnectedAccountStatus.NeedsReconnect;
-            await _accountRepository.UpsertAsync(account);
-            throw;
-        }
-
-        account.AccessToken = refreshed.AccessToken;
-        account.RefreshToken = refreshed.RefreshToken;
-        account.TokenExpiresAt = DateTimeOffset.FromUnixTimeSeconds(refreshed.ExpiresAtUnix).UtcDateTime;
-        await _accountRepository.UpsertAsync(account);
-
-        return account.AccessToken;
     }
 }

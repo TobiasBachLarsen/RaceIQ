@@ -40,6 +40,7 @@ builder.Services.Configure<StravaOAuthOptions>(builder.Configuration.GetSection(
 builder.Services.AddHttpClient<IStravaOAuthService, StravaOAuthService>();
 builder.Services.AddScoped<IConnectedAccountRepository, EfConnectedAccountRepository>();
 
+builder.Services.AddScoped<ConnectedAccountTokenRefresher>();
 builder.Services.AddSingleton<StravaRequestThrottle>();
 builder.Services.AddHttpClient<IStravaApiClient, StravaApiClient>();
 builder.Services.AddProviderSync<StravaSyncService>();

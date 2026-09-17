@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using RaceIQ.Domain;
+using RaceIQ.Infrastructure;
 using RaceIQ.Infrastructure.Whoop;
 using RaceIQ.UnitTests.Fakes;
 using Xunit;
@@ -18,7 +19,8 @@ public class WhoopSyncServiceTests
         var api = new FakeWhoopApiClient();
         var oauth = new FakeWhoopOAuthService(refresh);
         var recoveries = new FakeRecoveryDayRepository();
-        var service = new WhoopSyncService(api, oauth, recoveries, accounts, NullLogger<WhoopSyncService>.Instance);
+        var refresher = new ConnectedAccountTokenRefresher(accounts, NullLogger<ConnectedAccountTokenRefresher>.Instance);
+        var service = new WhoopSyncService(api, oauth, recoveries, accounts, refresher, NullLogger<WhoopSyncService>.Instance);
         return (service, accounts, api, oauth, recoveries);
     }
 
@@ -118,9 +120,11 @@ public class WhoopSyncServiceTests
         // The coordinator only calls providers with an account, but any other caller
         // gets the same quiet no-op rather than an exception.
         var api = new FakeWhoopApiClient();
+        var accounts = new FakeConnectedAccountRepository();
         var service = new WhoopSyncService(
-            api, new FakeWhoopOAuthService(_ => Token("unused")), new FakeRecoveryDayRepository(),
-            new FakeConnectedAccountRepository(), NullLogger<WhoopSyncService>.Instance);
+            api, new FakeWhoopOAuthService(_ => Token("unused")), new FakeRecoveryDayRepository(), accounts,
+            new ConnectedAccountTokenRefresher(accounts, NullLogger<ConnectedAccountTokenRefresher>.Instance),
+            NullLogger<WhoopSyncService>.Instance);
 
         await service.SyncAsync("nobody");
 
