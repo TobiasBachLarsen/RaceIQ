@@ -1,0 +1,20 @@
+@* One number with its unit and a label, as used in the overview's stat grids. *@
+
+<div class="stat">
+    <span class="stat-num @CssClass">@Value@if (Unit is not null) { <span class="stat-unit">@Unit</span> }</span>
+    <span class="stat-label">@Label</span>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Value { get; set; } = "";
+
+    [Parameter]
+    public string? Unit { get; set; }
+
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = "";
+
+    [Parameter]
+    public string? CssClass { get; set; }
+}

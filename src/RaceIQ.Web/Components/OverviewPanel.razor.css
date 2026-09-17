@@ -20,39 +20,3 @@
     grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
     gap: 1.5rem 1.25rem;
 }
-
-.stat {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-    min-width: 0;
-}
-
-.stat-num {
-    font-size: 1.85rem;
-    font-weight: 700;
-    line-height: 1;
-    letter-spacing: -0.02em;
-    color: var(--text);
-    font-variant-numeric: tabular-nums;
-}
-
-.overview-section--recent .stat-num {
-    font-size: 1.4rem;
-}
-
-.stat-unit {
-    margin-left: 0.2rem;
-    font-size: 0.8em;
-    font-weight: 600;
-    color: var(--text-muted);
-}
-
-.stat-num--up { color: var(--success); }
-.stat-num--mid { color: var(--warning); }
-.stat-num--down { color: var(--danger); }
-
-.stat-label {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-}

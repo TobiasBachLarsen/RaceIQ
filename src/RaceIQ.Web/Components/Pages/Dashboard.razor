@@ -29,21 +29,13 @@
     <OverviewPanel Stats="_stats" LatestRecovery="_latestRecovery" />
 }
 
-@if (_connectedAccount is null)
-{
-    <div class="card empty-state">
-        <p>Forbind din Strava-konto for at hente dine ture.</p>
-        <a href="/strava/connect" class="btn btn-primary">Forbind Strava</a>
-    </div>
-}
-else if (_connectedAccount.Status == ConnectedAccountStatus.NeedsReconnect)
-{
-    <div class="card empty-state">
-        <span class="status-badge status-badge--warning">Skal genoprettes</span>
-        <p>Din Strava-forbindelse skal opdateres, før du kan synkronisere igen.</p>
-        <a href="/strava/connect" class="btn btn-primary">Genopret forbindelse</a>
-    </div>
-}
+<OAuthConnectionCard
+    Account="_connectedAccount"
+    ConnectUrl="/strava/connect"
+    ConnectPrompt="Forbind din Strava-konto for at hente dine ture."
+    ConnectButtonText="Forbind Strava"
+    ReconnectBadgeText="Skal genoprettes"
+    ReconnectMessage="Din Strava-forbindelse skal opdateres, før du kan synkronisere igen." />
 
 <ZwiftPowerImportCard InitialRiderId="@_zwiftPowerAccount?.ExternalAccountId" />
 
@@ -68,21 +60,13 @@ else if (_connectedAccount.Status == ConnectedAccountStatus.NeedsReconnect)
     </Instructions>
 </ProviderConnectionCard>
 
-@if (_whoopAccount is null)
-{
-    <div class="card empty-state">
-        <p>Forbind WHOOP for at se din daglige restitution (recovery, HRV og hvilepuls) sammen med dine ture.</p>
-        <a href="/whoop/connect" class="btn btn-primary">Forbind WHOOP</a>
-    </div>
-}
-else if (_whoopAccount.Status == ConnectedAccountStatus.NeedsReconnect)
-{
-    <div class="card empty-state">
-        <span class="status-badge status-badge--warning">WHOOP skal genoprettes</span>
-        <p>Din WHOOP-forbindelse skal opdateres, før restitution kan synkroniseres igen.</p>
-        <a href="/whoop/connect" class="btn btn-primary">Genopret forbindelse</a>
-    </div>
-}
+<OAuthConnectionCard
+    Account="_whoopAccount"
+    ConnectUrl="/whoop/connect"
+    ConnectPrompt="Forbind WHOOP for at se din daglige restitution (recovery, HRV og hvilepuls) sammen med dine ture."
+    ConnectButtonText="Forbind WHOOP"
+    ReconnectBadgeText="WHOOP skal genoprettes"
+    ReconnectMessage="Din WHOOP-forbindelse skal opdateres, før restitution kan synkroniseres igen." />
 
 @if (_connectError is not null)
 {
