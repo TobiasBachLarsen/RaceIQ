@@ -89,9 +89,14 @@ and the account simply falls back to a reconnect prompt.
 
 ## Roadmap
 
-**Level 2 — tactical/draft analysis from live Zwift race telemetry.** This is a
-deliberately separate follow-up project. Draft percentage and rider positions are not kept
-in Strava, ZwiftPower, or ZwiftRacing after a race ends; that data exists only live, inside
-Zwift's game protocol while the ride is happening. Capturing it needs a live listener
-during the race, which is a different shape of system than this request/response app, so
-it is scoped as its own project rather than an extension of this one.
+Open work is tracked as [issues](https://github.com/TobiasBachLarsen/RaceIQ/issues), labelled
+`performance`, `refactor`, and `feature`. The biggest items are moving the per-second power
+stream out of the `Activities` table (the dashboard only needs totals), one-click ZwiftPower
+import via a bookmarklet, and per-race power curves from the ZwiftPower data.
+
+**Level 2 — tactical/draft analysis from live Zwift race telemetry** stays a deliberately
+separate follow-up project. Draft percentage and rider positions are not kept in Strava,
+ZwiftPower, or ZwiftRacing after a race ends; that data exists only live, inside Zwift's
+game protocol while the ride is happening. Capturing it needs a live listener during the
+race, which is a different shape of system than this request/response app, so it is scoped
+as its own project rather than an extension of this one.
