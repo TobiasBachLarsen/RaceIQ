@@ -21,13 +21,16 @@ public static class WhoopAuthEndpoints
 
         // WHOOP sends the user back here with ?code=...&state=... on success, or with
         // ?error=... if they declined - in which case there is no code and we just go home.
+        // A failed exchange or profile lookup also goes home, with a flag the dashboard
+        // turns into a "try again" message.
         app.MapGet("/whoop/callback", async (
             string? code,
             string state,
             IWhoopOAuthService oauth,
             IWhoopApiClient apiClient,
             IConnectedAccountRepository accountRepository,
-            IDataProtectionProvider dataProtection) =>
+            IDataProtectionProvider dataProtection,
+            ILogger<Program> logger) =>
         {
             var userId = OAuthState.TryUnprotect(dataProtection, ProtectorPurpose, state);
             if (userId is null)
@@ -36,8 +39,18 @@ public static class WhoopAuthEndpoints
             if (string.IsNullOrEmpty(code))
                 return Results.Redirect("/dashboard");
 
-            var tokenResponse = await oauth.ExchangeCodeAsync(code);
-            var profile = await apiClient.GetProfileAsync(tokenResponse.AccessToken);
+            WhoopTokenResponse tokenResponse;
+            WhoopProfile profile;
+            try
+            {
+                tokenResponse = await oauth.ExchangeCodeAsync(code);
+                profile = await apiClient.GetProfileAsync(tokenResponse.AccessToken);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException)
+            {
+                logger.LogWarning(ex, "WHOOP code exchange failed for user {UserId}", userId);
+                return Results.Redirect("/dashboard?connect=whoop-failed");
+            }
 
             await accountRepository.UpsertAsync(new ConnectedAccount
             {

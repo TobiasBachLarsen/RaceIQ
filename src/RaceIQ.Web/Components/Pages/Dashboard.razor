@@ -3,7 +3,6 @@
 @rendermode InteractiveServer
 @attribute [Authorize]
 @using Microsoft.AspNetCore.Authorization
-@using System.Security.Claims
 @using RaceIQ.Application
 @using RaceIQ.Domain
 @inject IConnectedAccountRepository ConnectedAccountRepository
@@ -85,6 +84,11 @@ else if (_whoopAccount.Status == ConnectedAccountStatus.NeedsReconnect)
     </div>
 }
 
+@if (_connectError is not null)
+{
+    <div class="alert alert-danger">@_connectError</div>
+}
+
 @if (_syncError is not null)
 {
     <div class="alert alert-danger">@_syncError</div>
@@ -118,6 +122,7 @@ else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
     private string? _syncError;
     private string? _zwiftPowerMessage;
     private bool _zwiftPowerImportFailed;
+    private string? _connectError;
     private string _userId = string.Empty;
 
     // ZwiftPower is a manual paste-import, not a synced provider, so it doesn't count here.
@@ -129,15 +134,28 @@ else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
     protected override async Task OnInitializedAsync()
     {
         _userId = await GetUserIdAsync();
-        ReadZwiftPowerImportOutcome();
+        ReadRedirectOutcomes();
         await LoadStateAsync();
     }
 
-    // The ZwiftPower import is a plain form post that redirects back here with its
-    // outcome in the query string ("12-9" = imported-matched, or "error").
-    private void ReadZwiftPowerImportOutcome()
+    // The ZwiftPower import and the OAuth callbacks are plain HTTP round-trips that
+    // redirect back here with their outcome in the query string: "zwiftpower=12-9"
+    // (imported-matched) or "zwiftpower=error", and "connect=strava-failed" /
+    // "connect=whoop-failed" when a code exchange did not go through.
+    private void ReadRedirectOutcomes()
     {
         var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(Navigation.Uri).Query);
+
+        if (query.TryGetValue("connect", out var connect))
+        {
+            _connectError = connect.ToString() switch
+            {
+                "strava-failed" => "Forbindelsen til Strava kunne ikke gennemføres. Prøv igen.",
+                "whoop-failed" => "Forbindelsen til WHOOP kunne ikke gennemføres. Prøv igen.",
+                _ => null
+            };
+        }
+
         if (!query.TryGetValue("zwiftpower", out var value))
             return;
 
@@ -157,7 +175,7 @@ else if (_connectedAccount is { Status: ConnectedAccountStatus.Connected })
     private async Task<string> GetUserIdAsync()
     {
         var state = await AuthState!;
-        return state.User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        return state.User.GetRequiredUserId("Dashboard");
     }
 
     // The full dashboard state: the four provider accounts plus activities, their

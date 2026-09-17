@@ -126,4 +126,28 @@ public class ZwiftPowerImportTests : IClassFixture<RaceIQApiFactory>
         var raceResultRepository = scope.ServiceProvider.GetRequiredService<IRaceResultRepository>();
         Assert.Empty(await raceResultRepository.GetAllForUserAsync(user.Id));
     }
+
+    [Fact]
+    public async Task Import_WithoutAntiforgeryToken_IsRejected()
+    {
+        // The form binds as an IFormCollection parameter precisely so that the framework's
+        // antiforgery check applies to this endpoint; a token-less post (the shape a
+        // cross-site form would produce) must be refused before the handler runs.
+        using var scope = _factory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = new ApplicationUser { UserName = "zpcsrf@example.com", Email = "zpcsrf@example.com" };
+        await userManager.CreateAsync(user, "P@ssw0rd!");
+
+        var (client, _) = await LoginAsync("zpcsrf@example.com");
+
+        var response = await client.PostAsync("/zwiftpower/import", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["zwiftRiderId"] = "12345",
+            ["resultsJson"] = """{"data":[]}"""
+        }));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var accountRepository = scope.ServiceProvider.GetRequiredService<IConnectedAccountRepository>();
+        Assert.Null(await accountRepository.GetAsync(user.Id, ConnectedAccountProvider.ZwiftPower));
+    }
 }
