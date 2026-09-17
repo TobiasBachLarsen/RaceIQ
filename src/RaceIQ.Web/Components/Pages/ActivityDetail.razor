@@ -72,7 +72,7 @@ else
             <dl class="recovery-strip">
                 <div>
                     <dt>Recovery</dt>
-                    <dd class="@RecoveryClass(_recovery.RecoveryScore)">@_recovery.RecoveryScore %</dd>
+                    <dd class="@BandClass(_recovery.Band)">@_recovery.RecoveryScore %</dd>
                 </div>
                 <div>
                     <dt>HRV</dt>
@@ -141,9 +141,12 @@ else
         }
     }
 
-    // WHOOP's own bands: green from 67 %, yellow from 34 %, red below.
-    private static string RecoveryClass(int score) =>
-        score >= 67 ? "recovery--high" : score >= 34 ? "recovery--mid" : "recovery--low";
+    private static string BandClass(RecoveryBand band) => band switch
+    {
+        RecoveryBand.High => "recovery--high",
+        RecoveryBand.Medium => "recovery--mid",
+        _ => "recovery--low"
+    };
 
     private async Task AnalyzeAsync()
     {

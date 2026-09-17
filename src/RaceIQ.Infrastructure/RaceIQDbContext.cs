@@ -28,6 +28,7 @@ public class RaceIQDbContext : IdentityDbContext<ApplicationUser>
         base.OnModelCreating(builder);
 
         builder.Entity<Activity>().Ignore(a => a.IsRace);
+        builder.Entity<RecoveryDay>().Ignore(d => d.Band);
 
         builder.Entity<RaceResult>()
             .HasIndex(r => new { r.UserId, r.Provider, r.ProviderResultId })
