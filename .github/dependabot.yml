@@ -11,6 +11,8 @@ updates:
       # appen kører net8.0 – Microsoft.*-pakker skal ikke hoppe til 9/10
       - dependency-name: "Microsoft.*"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "Npgsql*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
